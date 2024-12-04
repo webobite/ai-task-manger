@@ -1,33 +1,40 @@
 import { create } from 'zustand';
 import { Task } from '../types/task';
-import { sampleTasks } from '../data/sampleTasks';
 
-interface TaskState {
+interface TaskStore {
   tasks: Task[];
   addTask: (task: Task) => void;
-  updateTask: (taskId: string, updates: Partial<Task>) => void;
-  deleteTask: (taskId: string) => void;
-  toggleComplete: (taskId: string) => void;
+  updateTask: (id: string, task: Task) => void;
+  deleteTask: (id: string) => void;
+  toggleComplete: (id: string) => void;
 }
 
-export const useTaskStore = create<TaskState>((set) => ({
-  tasks: sampleTasks,
-  addTask: (task) =>
-    set((state) => ({ tasks: [...state.tasks, task] })),
-  updateTask: (taskId, updates) =>
+export const useTaskStore = create<TaskStore>((set) => ({
+  tasks: [],
+
+  addTask: (task: Task) => {
+    set((state) => ({
+      tasks: [...state.tasks, task],
+    }));
+  },
+
+  updateTask: (id: string, task: Task) => {
+    set((state) => ({
+      tasks: state.tasks.map((t) => (t.id === id ? task : t)),
+    }));
+  },
+
+  deleteTask: (id: string) => {
+    set((state) => ({
+      tasks: state.tasks.filter((t) => t.id !== id),
+    }));
+  },
+
+  toggleComplete: (id: string) => {
     set((state) => ({
       tasks: state.tasks.map((task) =>
-        task.id === taskId ? { ...task, ...updates } : task
+        task.id === id ? { ...task, completed: !task.completed } : task
       ),
-    })),
-  deleteTask: (taskId) =>
-    set((state) => ({
-      tasks: state.tasks.filter((task) => task.id !== taskId),
-    })),
-  toggleComplete: (taskId) =>
-    set((state) => ({
-      tasks: state.tasks.map((task) =>
-        task.id === taskId ? { ...task, completed: !task.completed } : task
-      ),
-    })),
+    }));
+  },
 }));

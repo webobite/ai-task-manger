@@ -6,19 +6,20 @@ export interface Task {
   completed: boolean;
   priority: 'low' | 'medium' | 'high';
   recurrence?: RecurrencePattern;
-  notifications?: NotificationPreference[];
+  projectId: string;
+  parentTaskId?: string;
+  status: 'todo' | 'in-progress' | 'hold' | 'blocked' | 'done';
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  isDefault?: boolean;
+  createdAt: Date;
 }
 
 export interface RecurrencePattern {
-  type: 'daily' | 'weekly' | 'weekday' | 'weekend' | 'custom';
+  type: 'daily' | 'weekly' | 'custom';
   interval?: number;
   daysOfWeek?: number[];
-  time?: string;
-}
-
-export interface NotificationPreference {
-  type: 'push' | 'email';
-  timing: 'at-time' | 'before';
-  minutes?: number;
-  enabled: boolean;
 }
