@@ -1,9 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Task, TaskStatus, TaskPriority, Project } from '../types';
 import { useTaskStore } from '../store/taskStore';
 import { useProjectStore } from '../store/projectStore';
 import { KanbanBoard } from './KanbanBoard';
-import { Pencil, Trash2, Filter, X, LayoutGrid, List, Search, ChevronDown, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Pencil, Trash2, Filter, X, LayoutGrid, List, Search, ChevronDown, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, SettingsIcon } from 'lucide-react';
 import { format, isToday, isTomorrow, isThisWeek, isPast, startOfToday, isWithinInterval, parseISO } from 'date-fns';
 import { cn } from '../lib/utils';
 
@@ -12,6 +12,7 @@ interface TaskListProps {
   onDeleteTask: (taskId: string) => void;
   onAddTask: (task: Omit<Task, 'id'>) => void;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
+  projectId?: string;
 }
 
 interface TaskFilters {
@@ -19,6 +20,7 @@ interface TaskFilters {
   priority: string;
   status: string;
   dueDate: string;
+  timeGrain: string;
   customStartDate?: string;
   customEndDate?: string;
 }
@@ -44,13 +46,24 @@ const STATUS_OPTIONS: FilterOption[] = [
   { value: TaskStatus.Completed, label: 'Completed' },
 ];
 
-const DUE_DATE_OPTIONS: FilterOption[] = [
-  { value: 'all', label: 'All Dates' },
-  { value: 'today', label: 'Due Today' },
-  { value: 'tomorrow', label: 'Due Tomorrow' },
-  { value: 'this-week', label: 'Due This Week' },
-  { value: 'overdue', label: 'Overdue' },
+const TIME_GRAIN_OPTIONS: FilterOption[] = [
+  { value: 'all', label: 'All Time' },
+  { value: 'today', label: 'Today' },
+  { value: 'this-week', label: 'This Week' },
+  { value: 'this-month', label: 'This Month' },
+  { value: 'this-quarter', label: 'This Quarter' },
+  { value: 'this-year', label: 'This Year' },
   { value: 'custom', label: 'Custom Range' },
+];
+
+const DUE_DATE_OPTIONS: FilterOption[] = [
+  { value: 'all', label: 'All Due Dates' },
+  { value: 'overdue', label: 'Overdue' },
+  { value: 'due-today', label: 'Due Today' },
+  { value: 'due-this-week', label: 'Due This Week' },
+  { value: 'due-next-week', label: 'Due Next Week' },
+  { value: 'due-this-month', label: 'Due This Month' },
+  { value: 'no-due-date', label: 'No Due Date' },
 ];
 
 interface TaskRowProps {
@@ -59,13 +72,25 @@ interface TaskRowProps {
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   level?: number;
+  visibleColumns: Set<string>;
 }
 
-function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
+function TaskRow({ task, project, onEdit, onDelete, level = 0, visibleColumns }: TaskRowProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
-  const tasks = useTaskStore((state) => state.tasks);
   const subtasks = task.subtasks || [];
   const hasSubtasks = subtasks.length > 0;
+
+  const handleSubtaskEdit = (subtaskId: string, newTitle: string) => {
+    const updatedSubtasks = task.subtasks.map(st =>
+      st.id === subtaskId ? { ...st, title: newTitle } : st
+    );
+    onEdit({ ...task, subtasks: updatedSubtasks });
+  };
+
+  const handleSubtaskDelete = (subtaskId: string) => {
+    const updatedSubtasks = task.subtasks.filter(st => st.id !== subtaskId);
+    onEdit({ ...task, subtasks: updatedSubtasks });
+  };
 
   return (
     <>
@@ -73,7 +98,8 @@ function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
         "hover:bg-gray-50",
         level > 0 && "bg-gray-50"
       )}>
-        <td className="px-6 py-4 whitespace-nowrap">
+        {/* Title Column - Always visible */}
+        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
           <div className="flex items-center gap-2" style={{ paddingLeft: `${level * 24}px` }}>
             {hasSubtasks && (
               <button
@@ -87,12 +113,12 @@ function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
                 )}
               </button>
             )}
-            <div>
-              <div className="text-sm font-medium text-gray-900">
+            <div className="min-w-0">
+              <div className="text-sm font-medium text-gray-900 truncate">
                 {task.title}
               </div>
               {task.description && (
-                <div className="text-sm text-gray-500 truncate max-w-md">
+                <div className="text-sm text-gray-500 truncate max-w-[200px] sm:max-w-md">
                   {task.description}
                 </div>
               )}
@@ -104,40 +130,76 @@ function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
             </div>
           </div>
         </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className="text-sm text-gray-900">{project?.name}</div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <span className={cn(
-            "px-2 py-1 text-xs font-medium rounded-full",
-            task.status === TaskStatus.Todo ? 'bg-gray-100 text-gray-800' :
-            task.status === TaskStatus.InProgress ? 'bg-blue-100 text-blue-800' :
-            task.status === TaskStatus.OnHold ? 'bg-yellow-100 text-yellow-800' :
-            task.status === TaskStatus.Blocked ? 'bg-red-100 text-red-800' :
-            'bg-green-100 text-green-800'
-          )}>
-            {task.status}
-          </span>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <span className={cn(
-            "px-2 py-1 text-xs font-medium rounded-full",
-            task.priority === TaskPriority.High ? 'bg-red-100 text-red-800' :
-            task.priority === TaskPriority.Medium ? 'bg-yellow-100 text-yellow-800' :
-            'bg-blue-100 text-blue-800'
-          )}>
-            {task.priority}
-          </span>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap">
-          <div className={cn(
-            "text-sm",
-            !task.completed && new Date(task.dueDate) < new Date() && "text-red-600 font-medium"
-          )}>
-            {format(new Date(task.dueDate), 'MMM d, yyyy')}
-          </div>
-        </td>
-        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+
+        {/* Project Column */}
+        {visibleColumns.has('project') && (
+          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+            <div className="text-sm text-gray-900">{project?.name}</div>
+          </td>
+        )}
+
+        {/* Status Column */}
+        {visibleColumns.has('status') && (
+          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+            <span className={cn(
+              "px-2 py-1 text-xs font-medium rounded-full",
+              task.status === TaskStatus.Todo ? 'bg-gray-100 text-gray-800' :
+              task.status === TaskStatus.InProgress ? 'bg-blue-100 text-blue-800' :
+              task.status === TaskStatus.OnHold ? 'bg-yellow-100 text-yellow-800' :
+              task.status === TaskStatus.Blocked ? 'bg-red-100 text-red-800' :
+              'bg-green-100 text-green-800'
+            )}>
+              {task.status}
+            </span>
+          </td>
+        )}
+
+        {/* Priority Column */}
+        {visibleColumns.has('priority') && (
+          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+            <span className={cn(
+              "px-2 py-1 text-xs font-medium rounded-full",
+              task.priority === TaskPriority.High ? 'bg-red-100 text-red-800' :
+              task.priority === TaskPriority.Medium ? 'bg-yellow-100 text-yellow-800' :
+              'bg-blue-100 text-blue-800'
+            )}>
+              {task.priority}
+            </span>
+          </td>
+        )}
+
+        {/* Due Date Column */}
+        {visibleColumns.has('dueDate') && (
+          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+            <div className={cn(
+              "text-sm",
+              !task.completed && new Date(task.dueDate) < new Date() && "text-red-600 font-medium"
+            )}>
+              {format(new Date(task.dueDate), 'MMM d, yyyy')}
+            </div>
+          </td>
+        )}
+
+        {/* Start Date Column */}
+        {visibleColumns.has('startDate') && (
+          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+            <div className="text-sm text-gray-900">
+              {task.startDate ? format(new Date(task.startDate), 'MMM d, yyyy HH:mm') : '-'}
+            </div>
+          </td>
+        )}
+
+        {/* End Date Column */}
+        {visibleColumns.has('endDate') && (
+          <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap">
+            <div className="text-sm text-gray-900">
+              {task.endDate ? format(new Date(task.endDate), 'MMM d, yyyy HH:mm') : '-'}
+            </div>
+          </td>
+        )}
+
+        {/* Actions Column - Always visible */}
+        <td className="px-3 sm:px-6 py-2 sm:py-4 whitespace-nowrap text-right text-sm font-medium">
           <div className="flex items-center justify-end gap-2">
             <button
               onClick={() => onEdit(task)}
@@ -154,27 +216,50 @@ function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
           </div>
         </td>
       </tr>
+
+      {/* Subtasks */}
       {isExpanded && hasSubtasks && subtasks.map(subtask => (
         <tr key={subtask.id} className="bg-gray-50">
-          <td colSpan={6} className="px-6 py-2">
-            <div className="flex items-center gap-2 ml-8">
-              <input
-                type="checkbox"
-                checked={subtask.completed}
-                onChange={() => {
-                  const updatedSubtasks = task.subtasks.map(st =>
-                    st.id === subtask.id ? { ...st, completed: !st.completed } : st
-                  );
-                  onEdit({ ...task, subtasks: updatedSubtasks });
-                }}
-                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-              />
-              <span className={cn(
-                "text-sm",
-                subtask.completed && "line-through text-gray-500"
-              )}>
-                {subtask.title}
-              </span>
+          <td colSpan={visibleColumns.size + 2} className="px-3 sm:px-6 py-2">
+            <div className="flex items-center justify-between ml-8">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <input
+                  type="checkbox"
+                  checked={subtask.completed}
+                  onChange={() => {
+                    const updatedSubtasks = task.subtasks.map(st =>
+                      st.id === subtask.id ? { ...st, completed: !st.completed } : st
+                    );
+                    onEdit({ ...task, subtasks: updatedSubtasks });
+                  }}
+                  className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span className={cn(
+                  "text-sm truncate",
+                  subtask.completed && "line-through text-gray-500"
+                )}>
+                  {subtask.title}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 ml-2">
+                <button
+                  onClick={() => {
+                    const newTitle = prompt('Edit subtask', subtask.title);
+                    if (newTitle && newTitle !== subtask.title) {
+                      handleSubtaskEdit(subtask.id, newTitle);
+                    }
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
+                >
+                  <Pencil className="w-3 h-3" />
+                </button>
+                <button
+                  onClick={() => handleSubtaskDelete(subtask.id)}
+                  className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                >
+                  <Trash2 className="w-3 h-3" />
+                </button>
+              </div>
             </div>
           </td>
         </tr>
@@ -183,7 +268,7 @@ function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
   );
 }
 
-type SortField = 'title' | 'project' | 'status' | 'priority' | 'dueDate';
+type SortField = 'title' | 'project' | 'status' | 'priority' | 'dueDate' | 'startDate' | 'endDate';
 type SortDirection = 'asc' | 'desc';
 
 interface SortConfig {
@@ -195,24 +280,28 @@ interface TableColumn {
   field: SortField;
   label: string;
   sortable: boolean;
+  alwaysVisible?: boolean;
 }
 
 const TABLE_COLUMNS: TableColumn[] = [
-  { field: 'title', label: 'Task', sortable: true },
+  { field: 'title', label: 'Task', sortable: true, alwaysVisible: true },
   { field: 'project', label: 'Project', sortable: true },
   { field: 'status', label: 'Status', sortable: true },
   { field: 'priority', label: 'Priority', sortable: true },
   { field: 'dueDate', label: 'Due Date', sortable: true },
+  { field: 'startDate', label: 'Start Date', sortable: true },
+  { field: 'endDate', label: 'End Date', sortable: true },
 ];
 
-export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }: TaskListProps) {
+export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange, projectId }: TaskListProps) {
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useProjectStore((state) => state.projects);
   const [filters, setFilters] = React.useState<TaskFilters>({
-    projectId: 'all',
+    projectId: projectId || 'all',
     priority: 'all',
     status: 'all',
     dueDate: 'all',
+    timeGrain: 'all',
   });
   const [showFilters, setShowFilters] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<'board' | 'table'>('board');
@@ -221,6 +310,16 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
     field: 'dueDate',
     direction: 'asc'
   });
+  const [showColumnSettings, setShowColumnSettings] = useState(false);
+  const [visibleColumns, setVisibleColumns] = useState<Set<string>>(
+    new Set(TABLE_COLUMNS.map(col => col.field))
+  );
+
+  React.useEffect(() => {
+    if (projectId) {
+      setFilters(prev => ({ ...prev, projectId }));
+    }
+  }, [projectId]);
 
   const handleFilterChange = (key: keyof TaskFilters, value: string) => {
     if (key === 'dueDate' && value !== 'custom') {
@@ -237,6 +336,7 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
       priority: 'all',
       status: 'all',
       dueDate: 'all',
+      timeGrain: 'all',
     });
     setSearchQuery('');
   };
@@ -245,12 +345,27 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
     // Search filter
     if (searchQuery) {
       const searchLower = searchQuery.toLowerCase();
-      const matchesSearch = 
-        task.title.toLowerCase().includes(searchLower) ||
-        task.description?.toLowerCase().includes(searchLower) ||
-        projects.find(p => p.id === task.projectId)?.name.toLowerCase().includes(searchLower);
+      const project = projects.find(p => p.id === task.projectId);
       
-      if (!matchesSearch) return false;
+      // Search in task fields
+      const matchesTaskFields = 
+        task.title.toLowerCase().includes(searchLower) ||
+        task.description?.toLowerCase().includes(searchLower);
+
+      // Search in project fields
+      const matchesProject = project && (
+        project.name.toLowerCase().includes(searchLower) ||
+        project.description?.toLowerCase().includes(searchLower)
+      );
+
+      // Search in subtasks
+      const matchesSubtasks = task.subtasks?.some(subtask => 
+        subtask.title.toLowerCase().includes(searchLower)
+      );
+
+      if (!matchesTaskFields && !matchesProject && !matchesSubtasks) {
+        return false;
+      }
     }
 
     // Project filter
@@ -268,32 +383,63 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
       return false;
     }
 
+    // Time grain filter
+    if (filters.timeGrain !== 'all') {
+      const taskDate = task.startDate ? new Date(task.startDate) : new Date(task.dueDate);
+      const today = startOfToday();
+      
+      switch (filters.timeGrain) {
+        case 'today':
+          if (!isToday(taskDate)) return false;
+          break;
+        case 'this-week':
+          if (!isThisWeek(taskDate)) return false;
+          break;
+        case 'this-month':
+          if (!isThisMonth(taskDate)) return false;
+          break;
+        case 'this-quarter':
+          if (!isThisQuarter(taskDate)) return false;
+          break;
+        case 'this-year':
+          if (!isThisYear(taskDate)) return false;
+          break;
+        case 'custom':
+          if (filters.customStartDate && filters.customEndDate) {
+            const startDate = parseISO(filters.customStartDate);
+            const endDate = parseISO(filters.customEndDate);
+            if (!isWithinInterval(taskDate, { start: startDate, end: endDate })) {
+              return false;
+            }
+          }
+          break;
+      }
+    }
+
     // Due date filter
     if (filters.dueDate !== 'all') {
       const dueDate = new Date(task.dueDate);
+      const today = startOfToday();
       
-      if (filters.dueDate === 'custom' && filters.customStartDate && filters.customEndDate) {
-        const startDate = parseISO(filters.customStartDate);
-        const endDate = parseISO(filters.customEndDate);
-        if (!isWithinInterval(dueDate, { start: startDate, end: endDate })) {
-          return false;
-        }
-      } else {
-        const today = startOfToday();
-        switch (filters.dueDate) {
-          case 'today':
-            if (!isToday(dueDate)) return false;
-            break;
-          case 'tomorrow':
-            if (!isTomorrow(dueDate)) return false;
-            break;
-          case 'this-week':
-            if (!isThisWeek(dueDate)) return false;
-            break;
-          case 'overdue':
-            if (!isPast(dueDate) || isToday(dueDate)) return false;
-            break;
-        }
+      switch (filters.dueDate) {
+        case 'overdue':
+          if (!isBefore(dueDate, today)) return false;
+          break;
+        case 'due-today':
+          if (!isToday(dueDate)) return false;
+          break;
+        case 'due-this-week':
+          if (!isThisWeek(dueDate)) return false;
+          break;
+        case 'due-next-week':
+          if (!isNextWeek(dueDate)) return false;
+          break;
+        case 'due-this-month':
+          if (!isThisMonth(dueDate)) return false;
+          break;
+        case 'no-due-date':
+          if (task.dueDate) return false;
+          break;
       }
     }
 
@@ -343,6 +489,18 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
       case 'dueDate':
         return direction * (new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
       
+      case 'startDate':
+        if (!a.startDate && !b.startDate) return 0;
+        if (!a.startDate) return direction;
+        if (!b.startDate) return -direction;
+        return direction * (new Date(a.startDate).getTime() - new Date(b.startDate).getTime());
+      
+      case 'endDate':
+        if (!a.endDate && !b.endDate) return 0;
+        if (!a.endDate) return direction;
+        if (!b.endDate) return -direction;
+        return direction * (new Date(a.endDate).getTime() - new Date(b.endDate).getTime());
+      
       default:
         return 0;
     }
@@ -354,83 +512,85 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
                           filters.dueDate !== 'all' ||
                           searchQuery !== '';
 
+  const toggleColumn = (field: string) => {
+    if (field === 'title') return; // Don't allow toggling the title column
+    
+    setVisibleColumns(prev => {
+      const next = new Set(prev);
+      if (next.has(field)) {
+        next.delete(field);
+      } else {
+        next.add(field);
+      }
+      return next;
+    });
+  };
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         {/* Search and Filters */}
-        <div className="flex items-center gap-2 flex-1">
-          <div className="relative flex-1 max-w-md">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-64 md:w-96">
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search tasks..."
-              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            <Search className="w-5 h-5 text-gray-400 absolute left-3 top-2.5" />
+            <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
           </div>
 
           <button
             onClick={() => setShowFilters(!showFilters)}
             className={cn(
-              "flex items-center gap-1 px-3 py-2 text-sm font-medium rounded-lg",
-              showFilters || hasActiveFilters
-                ? "bg-indigo-50 text-indigo-600"
-                : "text-gray-600 hover:bg-gray-50"
+              "flex items-center gap-2 px-3 py-2 rounded-lg border",
+              showFilters
+                ? "border-indigo-500 text-indigo-600 bg-indigo-50"
+                : "border-gray-300 text-gray-700 hover:bg-gray-50"
             )}
           >
             <Filter className="w-4 h-4" />
             Filters
             {hasActiveFilters && (
-              <span className="ml-1 bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full text-xs">
-                Active
-              </span>
+              <span className="w-2 h-2 rounded-full bg-indigo-500" />
             )}
           </button>
-
-          {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="flex items-center gap-1 px-3 py-2 text-sm text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-50"
-            >
-              <X className="w-4 h-4" />
-              Clear
-            </button>
-          )}
         </div>
 
         {/* View Toggle */}
-        <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+        <div className="flex items-center gap-2 border rounded-lg p-1">
           <button
             onClick={() => setViewMode('board')}
             className={cn(
-              "flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md",
+              "p-2 rounded",
               viewMode === 'board'
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-indigo-500 text-white"
+                : "text-gray-600 hover:bg-gray-100"
             )}
           >
             <LayoutGrid className="w-4 h-4" />
-            Board
           </button>
           <button
             onClick={() => setViewMode('table')}
             className={cn(
-              "flex items-center gap-1 px-3 py-1.5 text-sm font-medium rounded-md",
+              "p-2 rounded",
               viewMode === 'table'
-                ? "bg-white text-gray-900 shadow-sm"
-                : "text-gray-600 hover:text-gray-900"
+                ? "bg-indigo-500 text-white"
+                : "text-gray-600 hover:bg-gray-100"
             )}
           >
             <List className="w-4 h-4" />
-            Table
           </button>
         </div>
       </div>
 
+      {/* Filters Panel */}
       {showFilters && (
-        <div className="bg-white p-4 rounded-lg shadow-sm space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="bg-white p-4 rounded-lg shadow space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {/* Project Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Project
@@ -438,7 +598,7 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
               <select
                 value={filters.projectId}
                 onChange={(e) => handleFilterChange('projectId', e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="w-full rounded-md border-gray-300"
               >
                 <option value="all">All Projects</option>
                 {projects.map((project) => (
@@ -449,16 +609,17 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
               </select>
             </div>
 
+            {/* Time Grain Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Status
+                Time Period
               </label>
               <select
-                value={filters.status}
-                onChange={(e) => handleFilterChange('status', e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                value={filters.timeGrain}
+                onChange={(e) => handleFilterChange('timeGrain', e.target.value)}
+                className="w-full rounded-md border-gray-300"
               >
-                {STATUS_OPTIONS.map((option) => (
+                {TIME_GRAIN_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
                   </option>
@@ -466,23 +627,7 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Priority
-              </label>
-              <select
-                value={filters.priority}
-                onChange={(e) => handleFilterChange('priority', e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-              >
-                {PRIORITY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
+            {/* Due Date Filter */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Due Date
@@ -490,7 +635,7 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
               <select
                 value={filters.dueDate}
                 onChange={(e) => handleFilterChange('dueDate', e.target.value)}
-                className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
+                className="w-full rounded-md border-gray-300"
               >
                 {DUE_DATE_OPTIONS.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -499,32 +644,45 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
                 ))}
               </select>
             </div>
+
+            {/* Custom Date Range */}
+            {(filters.timeGrain === 'custom' || filters.dueDate === 'custom') && (
+              <div className="col-span-full grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start Date
+                  </label>
+                  <input
+                    type="date"
+                    value={filters.customStartDate}
+                    onChange={(e) => handleFilterChange('customStartDate', e.target.value)}
+                    className="w-full rounded-md border-gray-300"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End Date
+                  </label>
+                  <input
+                    type="date"
+                    value={filters.customEndDate}
+                    onChange={(e) => handleFilterChange('customEndDate', e.target.value)}
+                    className="w-full rounded-md border-gray-300"
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
-          {filters.dueDate === 'custom' && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  value={filters.customStartDate ?? ''}
-                  onChange={(e) => handleFilterChange('customStartDate', e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  End Date
-                </label>
-                <input
-                  type="date"
-                  value={filters.customEndDate ?? ''}
-                  onChange={(e) => handleFilterChange('customEndDate', e.target.value)}
-                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                />
-              </div>
+          {/* Clear Filters Button */}
+          {hasActiveFilters && (
+            <div className="flex justify-end">
+              <button
+                onClick={clearFilters}
+                className="text-sm text-gray-600 hover:text-gray-900"
+              >
+                Clear Filters
+              </button>
             </div>
           )}
         </div>
@@ -543,12 +701,12 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  {TABLE_COLUMNS.map(column => (
+                  {TABLE_COLUMNS.filter(column => visibleColumns.has(column.field)).map(column => (
                     <th
                       key={column.field}
                       scope="col"
                       className={cn(
-                        "px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
+                        "px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider",
                         column.sortable && "cursor-pointer hover:bg-gray-100"
                       )}
                       onClick={() => column.sortable && handleSort(column.field)}
@@ -563,7 +721,7 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
                       </div>
                     </th>
                   ))}
-                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th scope="col" className="px-3 sm:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -578,6 +736,7 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }
                       project={project}
                       onEdit={onEditTask}
                       onDelete={onDeleteTask}
+                      visibleColumns={visibleColumns}
                     />
                   );
                 })}

@@ -9,6 +9,8 @@ export interface Task {
   projectId: string;
   parentTaskId?: string;
   status: 'todo' | 'in-progress' | 'hold' | 'blocked' | 'done';
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export interface Project {

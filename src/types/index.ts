@@ -47,6 +47,8 @@ export interface Task {
   subtasks: Subtask[];
   parentTaskId?: string;
   recurrence?: RecurrencePattern;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface Project {

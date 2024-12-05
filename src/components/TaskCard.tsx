@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Task } from '../types';
 import { format } from 'date-fns';
-import { Pencil, Trash2, RotateCw } from 'lucide-react';
+import { Pencil, Trash2, RotateCw, PlayCircle, CheckCircle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { TaskForm } from './TaskForm';
 
@@ -12,110 +12,75 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, onEdit, onDelete }: TaskCardProps) {
-  const [showEditModal, setShowEditModal] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
-  const handleEdit = (updatedTask: Task | Omit<Task, 'id'>) => {
-    const finalTask = {
-      ...(updatedTask as Omit<Task, 'id'>),
-      id: task.id,
-    };
-    onEdit(finalTask);
-    setShowEditModal(false);
-  };
-
-  const stopPropagation = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleEdit = (updatedTask: Task) => {
+    onEdit(updatedTask);
+    setShowEditForm(false);
   };
 
   return (
-    <>
-      <div className="bg-white p-3 rounded-lg shadow-sm hover:shadow-md transition-shadow group">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <h3 className={cn(
-              "font-medium",
-              task.completed && "line-through text-gray-500"
-            )}>
-              {task.title}
-            </h3>
-            {task.recurrence && (
-              <RotateCw className="w-4 h-4 text-gray-400" />
-            )}
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+      {showEditForm ? (
+        <TaskForm task={task} onSubmit={handleEdit} onClose={() => setShowEditForm(false)} />
+      ) : (
+        <>
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-medium text-gray-900">{task.title}</h3>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowEditForm(true)}
+                className="p-1 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded"
+              >
+                <Pencil className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => onDelete(task.id)}
+                className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
           </div>
-          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-            <button
-              onClick={(e) => {
-                stopPropagation(e);
-                setShowEditModal(true);
-              }}
-              className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-            >
-              <Pencil className="w-4 h-4" />
-            </button>
-            <button
-              onClick={(e) => {
-                stopPropagation(e);
-                onDelete(task.id);
-              }}
-              className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
 
-        {task.description && (
-          <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-            {task.description}
-          </p>
-        )}
-
-        <div className="flex items-center gap-2 mt-2">
-          <span className={cn(
-            "px-2 py-0.5 rounded-full text-xs font-medium",
-            task.priority === 'High' ? 'bg-red-100 text-red-800' :
-            task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-            'bg-blue-100 text-blue-800'
-          )}>
-            {task.priority}
-          </span>
-          <span className={cn(
-            "text-xs",
-            new Date(task.dueDate) < new Date() && !task.completed
-              ? "text-red-600 font-medium"
-              : "text-gray-500"
-          )}>
-            {format(new Date(task.dueDate), 'MMM d')}
-          </span>
-          {task.subtasks?.length > 0 && (
-            <span className="text-xs text-gray-500">
-              {task.subtasks.filter(st => st.completed).length}/{task.subtasks.length}
-            </span>
+          {task.description && (
+            <p className="mt-1 text-sm text-gray-600">{task.description}</p>
           )}
-        </div>
-      </div>
 
-      {showEditModal && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-          onClick={(e) => {
-            stopPropagation(e);
-            setShowEditModal(false);
-          }}
-        >
-          <div 
-            className="bg-white rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
-            onClick={stopPropagation}
-          >
-            <TaskForm
-              task={task}
-              onSubmit={handleEdit}
-              onClose={() => setShowEditModal(false)}
-            />
+          <div className="mt-3 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <span className={cn(
+                "px-2 py-1 rounded-full",
+                task.priority === 'high' && "bg-red-100 text-red-700",
+                task.priority === 'medium' && "bg-yellow-100 text-yellow-700",
+                task.priority === 'low' && "bg-green-100 text-green-700"
+              )}>
+                {task.priority}
+              </span>
+              <span className="flex items-center gap-1">
+                <RotateCw className="w-3 h-3" />
+                {format(new Date(task.dueDate), 'MMM d, yyyy')}
+              </span>
+            </div>
+
+            {/* Display start and end dates if available */}
+            <div className="flex flex-wrap gap-3 text-xs text-gray-500">
+              {task.startDate && (
+                <span className="flex items-center gap-1">
+                  <PlayCircle className="w-3 h-3 text-blue-500" />
+                  Started: {format(new Date(task.startDate), 'MMM d, yyyy HH:mm')}
+                </span>
+              )}
+              {task.endDate && (
+                <span className="flex items-center gap-1">
+                  <CheckCircle className="w-3 h-3 text-green-500" />
+                  Ended: {format(new Date(task.endDate), 'MMM d, yyyy HH:mm')}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        </>
       )}
-    </>
+    </div>
   );
 }

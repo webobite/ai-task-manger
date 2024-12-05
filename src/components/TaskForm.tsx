@@ -38,13 +38,28 @@ export function TaskForm({ task, onSubmit, onClose }: TaskFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('🚀 TaskForm: Form submission started', { formData, task });
+
     const submittedTask = {
       ...formData,
       recurrence: isRecurring ? recurrence : undefined,
       ...(task?.id ? { id: task.id } : {}),
     };
-    onSubmit(submittedTask as Task);
+
+    console.log('✨ TaskForm: Submitting task:', submittedTask);
+    try {
+      onSubmit(submittedTask as Task);
+      console.log('✅ TaskForm: Task submitted successfully');
+    } catch (error) {
+      console.error('❌ TaskForm: Error submitting task:', error);
+    }
     onClose();
+  };
+
+  const handleUpdateClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    console.log('🖱️ TaskForm: Update button clicked');
+    handleSubmit(e as any);
   };
 
   const handleAddSubtask = () => {
@@ -356,6 +371,7 @@ export function TaskForm({ task, onSubmit, onClose }: TaskFormProps) {
         </button>
         <button
           type="submit"
+          onClick={handleUpdateClick}
           className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
         >
           {task ? 'Update' : 'Create'} Task

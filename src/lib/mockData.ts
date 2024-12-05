@@ -36,6 +36,11 @@ export const getMockProjects = (): Project[] => [
 
 export const getMockTasks = (): Task[] => {
   const today = new Date();
+  const yesterday = subDays(today, 1);
+  const twoDaysAgo = subDays(today, 2);
+  const threeDaysAgo = subDays(today, 3);
+  const fourDaysAgo = subDays(today, 4);
+  const fiveDaysAgo = subDays(today, 5);
   
   return [
     // Website Redesign Tasks
@@ -48,6 +53,7 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.High,
       dueDate: addDays(today, 5).toISOString(),
       completed: false,
+      startDate: twoDaysAgo.toISOString(),
       subtasks: [
         { id: 'st1', title: 'Color Palette Definition', completed: true },
         { id: 'st2', title: 'Typography Guidelines', completed: true },
@@ -90,6 +96,7 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.High,
       dueDate: addDays(today, 3).toISOString(),
       completed: false,
+      startDate: yesterday.toISOString(),
       subtasks: [
         { id: 'st6', title: 'Login Screen', completed: true },
         { id: 'st7', title: 'Password Reset', completed: false }
@@ -104,6 +111,8 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.Medium,
       dueDate: addDays(today, 7).toISOString(),
       completed: false,
+      startDate: threeDaysAgo.toISOString(),
+      endDate: yesterday.toISOString(),
       subtasks: []
     },
 
@@ -117,6 +126,7 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.High,
       dueDate: addDays(today, 2).toISOString(),
       completed: false,
+      startDate: fourDaysAgo.toISOString(),
       subtasks: [
         { id: 'st8', title: 'Content Calendar', completed: true },
         { id: 'st9', title: 'Platform Selection', completed: true }
@@ -131,6 +141,8 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.Medium,
       dueDate: addDays(today, 8).toISOString(),
       completed: false,
+      startDate: fiveDaysAgo.toISOString(),
+      endDate: twoDaysAgo.toISOString(),
       subtasks: []
     },
 
@@ -144,6 +156,8 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.High,
       dueDate: subDays(today, 5).toISOString(),
       completed: true,
+      startDate: fiveDaysAgo.toISOString(),
+      endDate: yesterday.toISOString(),
       subtasks: [
         { id: 'st10', title: 'Competitor Analysis', completed: true },
         { id: 'st11', title: 'Customer Surveys', completed: true }
@@ -158,6 +172,7 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.High,
       dueDate: addDays(today, 20).toISOString(),
       completed: false,
+      startDate: threeDaysAgo.toISOString(),
       subtasks: [
         { id: 'st12', title: 'Venue Selection', completed: true },
         { id: 'st13', title: 'Guest List', completed: false },
@@ -175,6 +190,7 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.Medium,
       dueDate: addDays(today, 12).toISOString(),
       completed: false,
+      startDate: fourDaysAgo.toISOString(),
       subtasks: [
         { id: 'st15', title: 'Database Design', completed: true },
         { id: 'st16', title: 'API Development', completed: false }

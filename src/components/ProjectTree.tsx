@@ -5,6 +5,7 @@ import { useTaskStore } from '../store/taskStore';
 import { Project, Task } from '../types';
 import { cn } from '../lib/utils';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { useNavigate } from 'react-router-dom';
 
 interface ProjectItemProps {
   project: Project;
@@ -144,18 +145,41 @@ function TaskItem({ task, tasks, level }: TaskItemProps) {
 }
 
 export function ProjectTree() {
-  const [newProjectName, setNewProjectName] = useState('');
-  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
   const projects = useProjectStore((state) => state.projects);
-  const selectedProjectId = useProjectStore((state) => state.selectedProjectId);
-  const selectProject = useProjectStore((state) => state.selectProject);
-  const addProject = useProjectStore((state) => state.addProject);
+  const tasks = useTaskStore((state) => state.tasks);
   const updateProject = useProjectStore((state) => state.updateProject);
   const deleteProject = useProjectStore((state) => state.deleteProject);
-  const tasks = useTaskStore((state) => state.tasks);
+  const addProject = useProjectStore((state) => state.addProject);
+  
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+  const [newProjectName, setNewProjectName] = useState('');
+  const navigate = useNavigate();
 
-  const handleAddProject = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleProjectClick = (projectId: string) => {
+    setSelectedProjectId(projectId);
+    navigate(`/dashboard?project=${projectId}`);
+  };
+
+  const handleEditProject = (project: Project) => {
+    const newName = prompt('Enter new project name:', project.name);
+    if (newName && newName !== project.name) {
+      updateProject({ ...project, name: newName });
+    }
+  };
+
+  const handleDeleteProject = (projectId: string) => {
+    if (window.confirm('Are you sure you want to delete this project?')) {
+      deleteProject(projectId);
+      if (selectedProjectId === projectId) {
+        setSelectedProjectId(null);
+        navigate('/dashboard');
+      }
+    }
+  };
+
+  const handleAddProject = () => {
     if (newProjectName.trim()) {
       addProject({
         name: newProjectName.trim(),
@@ -163,6 +187,7 @@ export function ProjectTree() {
         color: '#' + Math.floor(Math.random()*16777215).toString(16),
       });
       setNewProjectName('');
+      setShowNewProjectModal(false);
     }
   };
 
@@ -178,52 +203,17 @@ export function ProjectTree() {
     });
   };
 
-  const expandAll = () => {
-    setExpandedProjects(new Set(projects.map(p => p.id)));
-  };
-
-  const collapseAll = () => {
-    setExpandedProjects(new Set());
-  };
-
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium">Projects</h2>
-        <div className="flex items-center gap-1">
-          <button
-            onClick={expandAll}
-            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-            title="Expand all"
-          >
-            <ChevronDown className="w-4 h-4" />
-          </button>
-          <button
-            onClick={collapseAll}
-            className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
-            title="Collapse all"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
-
-      <form onSubmit={handleAddProject} className="flex gap-2">
-        <input
-          type="text"
-          value={newProjectName}
-          onChange={(e) => setNewProjectName(e.target.value)}
-          placeholder="New project name..."
-          className="flex-1 px-3 py-1 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-        />
+      <div className="flex items-center justify-between px-2">
+        <h2 className="text-sm font-medium text-gray-500">Projects</h2>
         <button
-          type="submit"
-          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md"
-          disabled={!newProjectName.trim()}
+          onClick={() => setShowNewProjectModal(true)}
+          className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded"
         >
           <Plus className="w-4 h-4" />
         </button>
-      </form>
+      </div>
 
       <div className="space-y-1">
         {projects.map((project) => (
@@ -231,15 +221,54 @@ export function ProjectTree() {
             key={project.id}
             project={project}
             tasks={tasks}
-            onProjectClick={selectProject}
-            onEditProject={updateProject}
-            onDeleteProject={deleteProject}
+            onProjectClick={handleProjectClick}
+            onEditProject={handleEditProject}
+            onDeleteProject={handleDeleteProject}
             isSelected={project.id === selectedProjectId}
             isExpanded={expandedProjects.has(project.id)}
             onToggleExpand={toggleProjectExpand}
           />
         ))}
       </div>
+
+      {/* New Project Modal */}
+      {showNewProjectModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h2 className="text-lg font-semibold mb-4">Create New Project</h2>
+            <div className="space-y-4">
+              <div>
+                <label htmlFor="projectName" className="block text-sm font-medium text-gray-700">
+                  Project Name
+                </label>
+                <input
+                  type="text"
+                  id="projectName"
+                  value={newProjectName}
+                  onChange={(e) => setNewProjectName(e.target.value)}
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                  placeholder="Enter project name"
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => setShowNewProjectModal(false)}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddProject}
+                  disabled={!newProjectName.trim()}
+                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Create Project
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 
