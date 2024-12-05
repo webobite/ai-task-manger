@@ -4,6 +4,7 @@ import swaggerUi from 'swagger-ui-express';
 import { PORT, CORS_ORIGIN } from './config';
 import { swaggerSpec } from './swagger';
 import authRoutes from './routes/auth.routes';
+import projectRoutes from './routes/project.routes';
 
 const app = express();
 
@@ -46,6 +47,7 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/projects', projectRoutes);
 
 // 404 handler
 app.use((req, res, next) => {

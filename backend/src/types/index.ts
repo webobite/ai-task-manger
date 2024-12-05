@@ -23,4 +23,14 @@ export interface RegisterRequest {
   email: string;
   password: string;
   name: string;
+}
+
+export interface Project {
+  id: number;
+  name: string;
+  description?: string;
+  userId: number;
+  parentId?: number;
+  createdAt: string;
+  updatedAt: string;
 } 

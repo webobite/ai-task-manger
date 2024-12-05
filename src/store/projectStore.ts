@@ -1,142 +1,89 @@
 import { create } from 'zustand';
-import { Task, TaskStatus, Project } from '../types';
-import { getMockProjects, getMockTasks } from '../lib/mockData';
+import { Project } from '../types';
+import { projectApi } from '../lib/api';
 
-interface User {
-  id: number;
-  email: string;
-  name: string;
-}
-
-interface ProjectStore {
+interface ProjectState {
   projects: Project[];
-  tasks: Task[];
-  user: User | null;
-  setUser: (user: User) => void;
-  clearUser: () => void;
-  addProject: (project: Project) => void;
-  updateProject: (project: Project) => void;
-  deleteProject: (projectId: string) => void;
-  addTask: (task: Task) => void;
-  updateTask: (task: Task) => void;
-  deleteTask: (taskId: string) => void;
-  updateTaskStatus: (taskId: string, status: TaskStatus) => void;
-  logout: () => void;
-  loadProjects: () => void;
-  loadTasks: () => void;
+  loading: boolean;
+  error: string | null;
+  loadProjects: () => Promise<void>;
+  createProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateProject: (id: string, updates: Partial<Omit<Project, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
 }
 
-export const useProjectStore = create<ProjectStore>((set) => ({
+export const useProjectStore = create<ProjectState>((set) => ({
   projects: [],
-  tasks: [],
-  user: (() => {
-    const storedUser = localStorage.getItem('user');
-    return storedUser ? JSON.parse(storedUser) : null;
-  })(),
+  loading: false,
+  error: null,
 
-  setUser: (user) => {
-    localStorage.setItem('user', JSON.stringify(user));
-    set({ user });
-  },
-
-  clearUser: () => {
-    localStorage.removeItem('user');
-    set({ user: null });
-  },
-
-  loadProjects: () => {
-    const storedUser = localStorage.getItem('user');
-    const user = storedUser ? JSON.parse(storedUser) : null;
-    
-    if (user?.email === 'demo@example.com') {
-      // Load mock data for demo account
-      const storedProjects = localStorage.getItem('projects');
-      const projects = storedProjects ? JSON.parse(storedProjects) : getMockProjects();
-      set({ projects });
-    } else {
-      // For other users, load from localStorage without mock data fallback
-      const storedProjects = localStorage.getItem('projects');
-      const projects = storedProjects ? JSON.parse(storedProjects) : [];
-      set({ projects });
+  loadProjects: async () => {
+    try {
+      set({ loading: true, error: null });
+      const projects = await projectApi.getProjects();
+      set({ projects, loading: false });
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to load projects',
+        loading: false 
+      });
     }
   },
 
-  loadTasks: () => {
-    const storedUser = localStorage.getItem('user');
-    const user = storedUser ? JSON.parse(storedUser) : null;
-    
-    if (user?.email === 'demo@example.com') {
-      // Load mock data for demo account
-      const storedTasks = localStorage.getItem('tasks');
-      const tasks = storedTasks ? JSON.parse(storedTasks) : getMockTasks();
-      set({ tasks });
-    } else {
-      // For other users, load from localStorage without mock data fallback
-      const storedTasks = localStorage.getItem('tasks');
-      const tasks = storedTasks ? JSON.parse(storedTasks) : [];
-      set({ tasks });
+  createProject: async (project) => {
+    try {
+      set({ loading: true, error: null });
+      const newProject = await projectApi.createProject(project);
+      set(state => ({ 
+        projects: [...state.projects, newProject],
+        loading: false 
+      }));
+    } catch (error) {
+      console.error('Error creating project:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to create project',
+        loading: false 
+      });
+      throw error;
     }
   },
 
-  addProject: (project) => {
-    set((state) => {
-      const newProjects = [...state.projects, project];
-      localStorage.setItem('projects', JSON.stringify(newProjects));
-      return { projects: newProjects };
-    });
+  updateProject: async (id, updates) => {
+    try {
+      set({ loading: true, error: null });
+      const updatedProject = await projectApi.updateProject(id, updates);
+      set(state => ({
+        projects: state.projects.map(p => 
+          p.id === id ? { ...p, ...updatedProject } : p
+        ),
+        loading: false
+      }));
+    } catch (error) {
+      console.error('Error updating project:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to update project',
+        loading: false 
+      });
+      throw error;
+    }
   },
 
-  updateProject: (project) =>
-    set((state) => {
-      const newProjects = state.projects.map((p) =>
-        p.id === project.id ? project : p
-      );
-      localStorage.setItem('projects', JSON.stringify(newProjects));
-      return { projects: newProjects };
-    }),
-
-  deleteProject: (projectId) =>
-    set((state) => {
-      const newProjects = state.projects.filter((p) => p.id !== projectId);
-      localStorage.setItem('projects', JSON.stringify(newProjects));
-      return { projects: newProjects };
-    }),
-
-  addTask: (task) =>
-    set((state) => {
-      const newTasks = [...state.tasks, task];
-      localStorage.setItem('tasks', JSON.stringify(newTasks));
-      return { tasks: newTasks };
-    }),
-
-  updateTask: (task) =>
-    set((state) => {
-      const newTasks = state.tasks.map((t) => (t.id === task.id ? task : t));
-      localStorage.setItem('tasks', JSON.stringify(newTasks));
-      return { tasks: newTasks };
-    }),
-
-  deleteTask: (taskId) =>
-    set((state) => {
-      const newTasks = state.tasks.filter((t) => t.id !== taskId);
-      localStorage.setItem('tasks', JSON.stringify(newTasks));
-      return { tasks: newTasks };
-    }),
-
-  updateTaskStatus: (taskId, status) =>
-    set((state) => {
-      const newTasks = state.tasks.map((t) =>
-        t.id === taskId ? { ...t, status } : t
-      );
-      localStorage.setItem('tasks', JSON.stringify(newTasks));
-      return { tasks: newTasks };
-    }),
-
-  logout: () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    localStorage.removeItem('projects');
-    localStorage.removeItem('tasks');
-    set({ user: null, projects: [], tasks: [] });
+  deleteProject: async (id) => {
+    try {
+      set({ loading: true, error: null });
+      await projectApi.deleteProject(id);
+      set(state => ({
+        projects: state.projects.filter(p => p.id !== id),
+        loading: false
+      }));
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to delete project',
+        loading: false 
+      });
+      throw error;
+    }
   },
 })); 

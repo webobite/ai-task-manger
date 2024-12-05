@@ -1,50 +1,66 @@
-import React from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronDown, ChevronRight, Plus, X, Folder, FolderOpen } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { 
+  ChevronRight, 
+  ChevronDown, 
+  FolderPlus, 
+  Loader2, 
+  MoreVertical,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 import { useProjectStore } from '../store/projectStore';
 import { Project } from '../types';
-import { generateId } from '../lib/utils';
 import { cn } from '../lib/utils';
 
 interface ProjectNodeProps {
   project: Project;
-  level?: number;
+  level: number;
+  onCreateSubproject: (parentId: string) => void;
+  onEditProject: (project: Project) => void;
+  onDeleteProject: (projectId: string) => void;
 }
 
-function ProjectNode({ project, level = 0 }: ProjectNodeProps) {
-  const [isExpanded, setIsExpanded] = React.useState(false);
-  const navigate = useNavigate();
-  const { projectId: currentProjectId } = useParams();
+function ProjectNode({ 
+  project, 
+  level, 
+  onCreateSubproject, 
+  onEditProject,
+  onDeleteProject,
+}: ProjectNodeProps) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
+  const location = useLocation();
+  const isActive = location.pathname === `/projects/${project.id}`;
+  const menuRef = React.useRef<HTMLDivElement>(null);
 
-  const handleClick = () => {
-    navigate(`/projects/${project.id}`);
-  };
+  const hasChildren = project.children && project.children.length > 0;
+  const paddingLeft = `${level * 1.5}rem`;
 
-  // Auto-expand if this project or its children are active
-  React.useEffect(() => {
-    if (currentProjectId === project.id || 
-        project.children?.some(child => child.id === currentProjectId)) {
-      setIsExpanded(true);
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
     }
-  }, [currentProjectId, project]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   return (
     <div>
       <div
         className={cn(
-          "flex items-center px-4 py-2 hover:bg-gray-100 cursor-pointer",
-          currentProjectId === project.id && "bg-indigo-50 text-indigo-600"
+          "flex items-center py-1 px-2 hover:bg-gray-100 rounded-lg transition-colors group",
+          isActive && "bg-indigo-50 text-indigo-600"
         )}
-        style={{ paddingLeft: `${level * 1.5 + 1}rem` }}
-        onClick={handleClick}
+        style={{ paddingLeft }}
       >
-        {project.children && project.children.length > 0 ? (
+        {hasChildren ? (
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setIsExpanded(!isExpanded);
-            }}
-            className="p-1 hover:bg-gray-200 rounded mr-1"
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="p-1 hover:bg-gray-200 rounded"
           >
             {isExpanded ? (
               <ChevronDown className="w-4 h-4" />
@@ -53,22 +69,72 @@ function ProjectNode({ project, level = 0 }: ProjectNodeProps) {
             )}
           </button>
         ) : (
-          <div className="w-6" />
+          <span className="w-6" />
         )}
-        {isExpanded ? (
-          <FolderOpen className="w-4 h-4 mr-2 text-gray-500" />
-        ) : (
-          <Folder className="w-4 h-4 mr-2 text-gray-500" />
-        )}
-        <span className="flex-1 truncate">{project.name}</span>
+
+        <Link
+          to={`/projects/${project.id}`}
+          className="flex-1 truncate ml-2"
+        >
+          {project.name}
+        </Link>
+
+        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            onClick={() => onCreateSubproject(project.id)}
+            className="p-1 hover:bg-gray-200 rounded"
+            title="Add subproject"
+          >
+            <FolderPlus className="w-4 h-4" />
+          </button>
+
+          <div className="relative" ref={menuRef}>
+            <button
+              onClick={() => setShowMenu(!showMenu)}
+              className="p-1 hover:bg-gray-200 rounded"
+              title="More options"
+            >
+              <MoreVertical className="w-4 h-4" />
+            </button>
+
+            {showMenu && (
+              <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg z-10 py-1 border">
+                <button
+                  onClick={() => {
+                    onEditProject(project);
+                    setShowMenu(false);
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                >
+                  <Pencil className="w-4 h-4 mr-2" />
+                  Edit project
+                </button>
+                <button
+                  onClick={() => {
+                    onDeleteProject(project.id);
+                    setShowMenu(false);
+                  }}
+                  className="flex items-center w-full px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete project
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-      {isExpanded && project.children && (
-        <div>
+
+      {hasChildren && isExpanded && (
+        <div className="ml-2">
           {project.children.map((child) => (
             <ProjectNode
               key={child.id}
               project={child}
               level={level + 1}
+              onCreateSubproject={onCreateSubproject}
+              onEditProject={onEditProject}
+              onDeleteProject={onDeleteProject}
             />
           ))}
         </div>
@@ -78,91 +144,170 @@ function ProjectNode({ project, level = 0 }: ProjectNodeProps) {
 }
 
 export function ProjectTree() {
-  const [showNewProjectModal, setShowNewProjectModal] = React.useState(false);
-  const [newProjectName, setNewProjectName] = React.useState('');
-  const projects = useProjectStore((state) => state.projects);
-  const addProject = useProjectStore((state) => state.addProject);
+  const { projects, loading, error, loadProjects, createProject, updateProject, deleteProject } = useProjectStore();
+  const [isCreating, setIsCreating] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [projectName, setProjectName] = useState('');
+  const [projectDescription, setProjectDescription] = useState('');
+  const [projectColor, setProjectColor] = useState('');
+  const [parentId, setParentId] = useState<string | null>(null);
+  const [editingProject, setEditingProject] = useState<Project | null>(null);
 
-  const handleAddProject = () => {
-    if (newProjectName.trim()) {
-      const newProject: Project = {
-        id: generateId(),
-        name: newProjectName.trim(),
-        description: '',
-        color: '#' + Math.floor(Math.random()*16777215).toString(16),
-        children: []
-      };
-      
-      addProject(newProject);
-      setNewProjectName('');
-      setShowNewProjectModal(false);
+  useEffect(() => {
+    loadProjects();
+  }, [loadProjects]);
+
+  const handleCreateProject = async () => {
+    if (!projectName.trim()) return;
+
+    try {
+      await createProject({
+        name: projectName.trim(),
+        description: projectDescription.trim() || undefined,
+        color: projectColor || undefined,
+        parentId: parentId || undefined,
+      });
+      resetForm();
+    } catch (error) {
+      console.error('Failed to create project:', error);
     }
   };
 
-  return (
-    <div className="py-4">
-      <div className="px-4 mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Folder className="w-5 h-5 text-gray-500" />
-          <h2 className="text-lg font-semibold">Projects</h2>
-        </div>
+  const handleEditProject = async () => {
+    if (!editingProject || !projectName.trim()) return;
+
+    try {
+      await updateProject(editingProject.id, {
+        name: projectName.trim(),
+        description: projectDescription.trim() || undefined,
+        color: projectColor || undefined,
+      });
+      resetForm();
+    } catch (error) {
+      console.error('Failed to update project:', error);
+    }
+  };
+
+  const handleDeleteProject = async (projectId: string) => {
+    if (window.confirm('Are you sure you want to delete this project?')) {
+      try {
+        await deleteProject(projectId);
+      } catch (error) {
+        console.error('Failed to delete project:', error);
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setProjectName('');
+    setProjectDescription('');
+    setProjectColor('');
+    setParentId(null);
+    setIsCreating(false);
+    setIsEditing(false);
+    setEditingProject(null);
+  };
+
+  const startEditingProject = (project: Project) => {
+    setEditingProject(project);
+    setProjectName(project.name);
+    setProjectDescription(project.description || '');
+    setProjectColor(project.color || '');
+    setIsEditing(true);
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <Loader2 className="w-6 h-6 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-4 text-red-600">
+        <p>Error loading projects:</p>
+        <p className="text-sm">{error}</p>
         <button
-          onClick={() => setShowNewProjectModal(true)}
-          className="p-1 hover:bg-gray-100 rounded"
+          onClick={() => loadProjects()}
+          className="mt-2 text-sm text-indigo-600 hover:text-indigo-700"
         >
-          <Plus className="w-5 h-5" />
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between px-2 mb-4">
+        <h2 className="text-sm font-semibold text-gray-600">Projects</h2>
+        <button
+          onClick={() => setIsCreating(true)}
+          className="p-1 hover:bg-gray-100 rounded"
+          title="Add project"
+        >
+          <FolderPlus className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="space-y-1">
-        {projects.map((project) => (
-          <ProjectNode key={project.id} project={project} />
-        ))}
-      </div>
-
-      {/* New Project Modal */}
-      {showNewProjectModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
-            <div className="flex items-center justify-between p-4 border-b">
-              <div className="flex items-center gap-2">
-                <Folder className="w-5 h-5 text-gray-500" />
-                <h2 className="text-lg font-semibold">New Project</h2>
-              </div>
-              <button
-                onClick={() => setShowNewProjectModal(false)}
-                className="p-1 hover:bg-gray-100 rounded"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-4">
-              <input
-                type="text"
-                value={newProjectName}
-                onChange={(e) => setNewProjectName(e.target.value)}
-                placeholder="Project name"
-                className="w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                autoFocus
-              />
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  onClick={() => setShowNewProjectModal(false)}
-                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleAddProject}
-                  className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md hover:bg-indigo-700"
-                >
-                  Create Project
-                </button>
-              </div>
-            </div>
+      {(isCreating || isEditing) && (
+        <div className="p-2 space-y-2">
+          <input
+            type="text"
+            value={projectName}
+            onChange={(e) => setProjectName(e.target.value)}
+            placeholder="Project name"
+            className="w-full px-2 py-1 text-sm border rounded"
+            autoFocus
+          />
+          <input
+            type="text"
+            value={projectDescription}
+            onChange={(e) => setProjectDescription(e.target.value)}
+            placeholder="Description (optional)"
+            className="w-full px-2 py-1 text-sm border rounded"
+          />
+          <input
+            type="text"
+            value={projectColor}
+            onChange={(e) => setProjectColor(e.target.value)}
+            placeholder="Color (optional)"
+            className="w-full px-2 py-1 text-sm border rounded"
+          />
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={resetForm}
+              className="px-2 py-1 text-sm text-gray-600 hover:text-gray-800"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={isEditing ? handleEditProject : handleCreateProject}
+              className="px-2 py-1 text-sm text-white bg-indigo-600 rounded hover:bg-indigo-700"
+            >
+              {isEditing ? 'Update' : 'Create'}
+            </button>
           </div>
         </div>
       )}
+
+      <div className="space-y-1">
+        {projects.map((project) => (
+          <ProjectNode
+            key={project.id}
+            project={project}
+            level={0}
+            onCreateSubproject={(id) => {
+              setParentId(id);
+              setIsCreating(true);
+            }}
+            onEditProject={startEditingProject}
+            onDeleteProject={handleDeleteProject}
+          />
+        ))}
+      </div>
     </div>
   );
 } 
