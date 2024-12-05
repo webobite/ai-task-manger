@@ -13,6 +13,11 @@ A modern task management application built with React and TypeScript.
 - Comprehensive task details with subtasks support
 - Demo user functionality for easy testing
 - Responsive and intuitive user interface
+- Modal-based task editing with fixed header/footer
+- Task history tracking for status and subtask changes
+- Advanced filtering in analytics dashboard
+- Interactive Gantt chart with task details
+- Filter chips for better visibility of applied filters
 
 ## Getting Started
 
@@ -65,20 +70,26 @@ src/
 - Project filtering
 
 ### Task Management
+- Modal-based task editing interface
 - Detailed task creation form
-- Subtasks support
-- Status tracking with dates
+- Subtasks support with history tracking
+- Status tracking with automatic dates
 - Task filtering and sorting
+- Comprehensive task history logging
 
 ### Views
 - Kanban board with customizable columns
 - Table view with sortable columns
-- Analytics dashboard with insights
+- Analytics dashboard with advanced filtering
+- Interactive Gantt chart visualization
+- Filter chips for active filters
 
 ### User Experience
 - Responsive design
 - Intuitive navigation
 - Demo account for testing
+- Fixed headers and footers in modals
+- Smooth scrolling content areas
 
 ## Contributing
 
