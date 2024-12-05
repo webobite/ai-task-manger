@@ -1,147 +1,93 @@
 # Task Manager
 
-A modern task management application built with React, TypeScript, and Tailwind CSS.
+A modern task management application built with React and TypeScript.
 
 ## Features
 
-### Task Management
-- Create, edit, and delete tasks
-- Organize tasks with projects
-- Add subtasks to break down complex tasks
-- Set task priorities (High, Medium, Low)
-- Track task status (Todo, In Progress, Completed, Blocked, On Hold)
-- Set due dates and track completion
-- Automatic start and end date tracking based on status changes
-
-### Project Organization
-- Create and manage multiple projects
-- Color-coded project identification
-- Project-based task filtering
-- Expandable/collapsible project tree view
-- Track project progress and task completion
-
-### Views and Layouts
-1. **Board View (Default)**
-   - Kanban-style board layout
-   - Drag-and-drop task management
-   - Collapsible status columns
-   - Quick status updates
-
-2. **Table View**
-   - Sortable columns
-   - Customizable column visibility
-   - Compact task listing
-   - Quick actions menu
-
-3. **Analytics Dashboard**
-   - Task metrics and KPIs
-   - Status distribution charts
-   - Priority distribution visualization
-   - Project timeline visualization
-   - Interactive Gantt chart with:
-     - Project and task timelines
-     - Expandable project sections
-     - Task and subtask hierarchy
-     - Detailed task modal with:
-       - Task information
-       - Project details
-       - Status and priority
-       - Dates (Start, End, Due)
-       - Subtask progress
-   - Comprehensive filtering system:
-     - Project-based filtering
-     - Time range selection (Today, Week, Month, Quarter, Year)
-     - Custom date range
-     - Filter chips for active filters
-
-### User Interface
-- Modern, clean design
-- Responsive layout
-- Collapsible sidebar
-- Dark/Light theme support
-- Smooth animations and transitions
-- Interactive tooltips and modals
-- Visual progress indicators
-
-### Filtering and Search
-- Advanced filtering options:
-  - By project
-  - By status
-  - By priority
-  - By due date
-  - By time range
-  - Custom date ranges
-- Filter chips for active filters
-- Search tasks across projects
-- Save filter preferences
-
-### User Management
-- User authentication
-- Demo user account
-- User preferences
-- Logout functionality
-
-## Technical Features
-- Built with React and TypeScript
-- Tailwind CSS for styling
-- State management with Zustand
-- React Router for navigation
-- Date handling with date-fns
-- Chart visualizations with Recharts
-- Drag and drop with @hello-pangea/dnd
-- Responsive design for all screen sizes
+- Project and task organization with a tree structure
+- Kanban board view with customizable columns
+- Task filtering and sorting options
+- Analytics dashboard with project insights
+- Collapsible sidebar for better workspace management
+- Task status tracking with automatic date updates
+- Comprehensive task details with subtasks support
+- Demo user functionality for easy testing
+- Responsive and intuitive user interface
 
 ## Getting Started
 
 ### Prerequisites
+
 - Node.js (v14 or higher)
 - npm or yarn
 
 ### Installation
+
 1. Clone the repository
+2. Install dependencies:
 ```bash
-git clone https://github.com/yourusername/task-manager.git
-```
-
-2. Install dependencies
-```bash
-cd task-manager
 npm install
+# or
+yarn install
 ```
 
-3. Start the development server
+3. Start the development server:
 ```bash
 npm run dev
+# or
+yarn dev
 ```
 
-### Building for Production
-```bash
-npm run build
-```
+## Usage
+
+1. Register a new account or use the demo account
+2. Create projects and organize them in a tree structure
+3. Add tasks with detailed information
+4. Use the Kanban board to manage task status
+5. Track progress in the analytics dashboard
 
 ## Project Structure
+
 ```
 src/
-├── components/
-│   ├── analytics/
-│   │   ├── TaskMetrics.tsx
-│   │   ├── TaskProgressCharts.tsx
-│   │   └── ProjectGanttChart.tsx
-│   ├── auth/
-│   ├── layout/
-│   └── ...
-├── store/
-├── types/
-├── lib/
-└── pages/
+├── components/     # React components
+├── pages/         # Page components
+├── store/         # State management
+├── types/         # TypeScript types
+└── utils/         # Utility functions
 ```
 
+## Key Features
+
+### Project Management
+- Hierarchical project organization
+- Collapsible project tree
+- Project filtering
+
+### Task Management
+- Detailed task creation form
+- Subtasks support
+- Status tracking with dates
+- Task filtering and sorting
+
+### Views
+- Kanban board with customizable columns
+- Table view with sortable columns
+- Analytics dashboard with insights
+
+### User Experience
+- Responsive design
+- Intuitive navigation
+- Demo account for testing
+
 ## Contributing
+
 1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+2. Create your feature branch
+3. Commit your changes
+4. Push to the branch
+5. Open a pull request
 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+This project is licensed under the MIT License.

@@ -46,16 +46,21 @@ export function App() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route
-        path="/"
         element={
           <ProtectedRoute>
             <DashboardLayout />
           </ProtectedRoute>
         }
       >
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<TaskList {...taskProps} />} />
-        <Route path="dashboard/analytics" element={<AnalyticsPage />} />
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/dashboard" element={<TaskList {...taskProps} />} />
+        <Route path="/analytics" element={<AnalyticsPage />} />
+        <Route path="/settings" element={<div className="p-6">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-6">Settings</h1>
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <p className="text-gray-600">Settings page coming soon...</p>
+          </div>
+        </div>} />
       </Route>
     </Routes>
   );

@@ -1,12 +1,13 @@
 import { create } from 'zustand';
-import { Task, TaskStatus } from '../types';
+import { Task, TaskStatus, TaskHistoryActionType, TaskHistoryEntry } from '../types';
 import { generateId } from '../lib/utils';
 import { getMockTasks } from '../lib/mockData';
+import { useAuthStore } from './authStore';
 
 interface TaskStore {
   tasks: Task[];
   addTask: (task: Omit<Task, 'id'>) => void;
-  updateTask: (id: string, updates: Partial<Task> | Task) => void;
+  updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   loadTasks: () => void;
 }
@@ -31,10 +32,31 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   addTask: (taskData) => {
     console.log('➕ Adding new task:', taskData);
+    const taskId = generateId();
+    const user = useAuthStore.getState().user;
+
     const task: Task = {
       ...taskData,
-      id: generateId(),
+      id: taskId,
+      history: [{
+        id: generateId(),
+        taskId,
+        actionType: TaskHistoryActionType.Created,
+        timestamp: new Date().toISOString(),
+        changes: {
+          field: 'task',
+          newValue: {
+            title: taskData.title,
+            status: taskData.status,
+            priority: taskData.priority,
+            dueDate: taskData.dueDate
+          }
+        },
+        userId: user?.id || 'system',
+        userName: user?.name || 'System'
+      }]
     };
+
     set((state) => {
       const newTasks = [...state.tasks, task];
       localStorage.setItem('tasks', JSON.stringify(newTasks));
@@ -45,51 +67,211 @@ export const useTaskStore = create<TaskStore>((set, get) => ({
 
   updateTask: (id, updates) => {
     console.log('🔄 TaskStore: Starting task update', { id, updates });
+    const user = useAuthStore.getState().user;
+    if (!user) return;
     
     try {
       set((state) => {
         const taskToUpdate = state.tasks.find(t => t.id === id);
-        console.log('🔍 TaskStore: Found task to update:', taskToUpdate);
-
         if (!taskToUpdate) {
           console.error('❌ TaskStore: Task not found:', id);
           return state;
         }
 
-        const updatedTasks = state.tasks.map((task) => {
-          if (task.id === id) {
-            const updatedTask = 'id' in updates ? updates : { ...task, ...updates };
-            
-            // Handle automatic date updates based on status changes
-            if ('status' in updates) {
-              const oldStatus = task.status;
-              const newStatus = updates.status;
-              
-              // Set startDate when moving from todo to in-progress
-              if (oldStatus === TaskStatus.Todo && newStatus === TaskStatus.InProgress) {
-                console.log('📅 TaskStore: Setting startDate for task:', id);
-                updatedTask.startDate = new Date().toISOString();
-              }
-              
-              // Set endDate when moving to done or blocked
-              if (newStatus === TaskStatus.Completed || newStatus === TaskStatus.Blocked) {
-                console.log('📅 TaskStore: Setting endDate for task:', id);
-                updatedTask.endDate = new Date().toISOString();
-              }
-              
-              // Clear endDate if moving back to in-progress
-              if ((oldStatus === TaskStatus.Completed || oldStatus === TaskStatus.Blocked) && 
-                  newStatus === TaskStatus.InProgress) {
-                console.log('🗑️ TaskStore: Clearing endDate for task:', id);
-                updatedTask.endDate = undefined;
-              }
+        const newHistory = [...(taskToUpdate.history || [])];
+
+        // Handle subtasks changes
+        if ('subtasks' in updates && updates.subtasks) {
+          const oldSubtasks = new Set(taskToUpdate.subtasks.map(s => s.id));
+          const newSubtasks = new Set(updates.subtasks.map(s => s.id));
+
+          // Find added subtasks
+          const addedSubtasks = updates.subtasks.filter(s => !oldSubtasks.has(s.id));
+          addedSubtasks.forEach(subtask => {
+            newHistory.push({
+              id: generateId(),
+              taskId: id,
+              actionType: TaskHistoryActionType.SubtaskAdded,
+              timestamp: new Date().toISOString(),
+              changes: {
+                field: 'Subtask',
+                newValue: subtask.title
+              },
+              userId: user.id,
+              userName: user.name
+            });
+          });
+
+          // Find removed subtasks
+          const removedSubtasks = taskToUpdate.subtasks.filter(s => !newSubtasks.has(s.id));
+          removedSubtasks.forEach(subtask => {
+            newHistory.push({
+              id: generateId(),
+              taskId: id,
+              actionType: TaskHistoryActionType.SubtaskRemoved,
+              timestamp: new Date().toISOString(),
+              changes: {
+                field: 'Subtask',
+                oldValue: subtask.title
+              },
+              userId: user.id,
+              userName: user.name
+            });
+          });
+
+          // Find modified subtasks (completion status)
+          const commonSubtasks = taskToUpdate.subtasks.filter(s => newSubtasks.has(s.id));
+          commonSubtasks.forEach(oldSubtask => {
+            const newSubtask = updates.subtasks.find(s => s.id === oldSubtask.id);
+            if (newSubtask && oldSubtask.completed !== newSubtask.completed) {
+              newHistory.push({
+                id: generateId(),
+                taskId: id,
+                actionType: TaskHistoryActionType.SubtaskCompleted,
+                timestamp: new Date().toISOString(),
+                changes: {
+                  field: 'Subtask',
+                  oldValue: oldSubtask.title,
+                  newValue: newSubtask.completed ? 'completed' : 'uncompleted'
+                },
+                userId: user.id,
+                userName: user.name
+              });
             }
-            
-            console.log('✏️ TaskStore: Updated task:', updatedTask);
-            return updatedTask as Task;
+          });
+        }
+
+        // Handle status change
+        if ('status' in updates && updates.status !== taskToUpdate.status) {
+          newHistory.push({
+            id: generateId(),
+            taskId: id,
+            actionType: TaskHistoryActionType.StatusChanged,
+            timestamp: new Date().toISOString(),
+            changes: {
+              field: 'Status',
+              oldValue: taskToUpdate.status,
+              newValue: updates.status
+            },
+            userId: user.id,
+            userName: user.name
+          });
+
+          // Add start date when moving to InProgress
+          if (taskToUpdate.status === TaskStatus.Todo && updates.status === TaskStatus.InProgress) {
+            updates.startDate = new Date().toISOString();
+            newHistory.push({
+              id: generateId(),
+              taskId: id,
+              actionType: TaskHistoryActionType.Updated,
+              timestamp: new Date().toISOString(),
+              changes: {
+                field: 'Start Date',
+                oldValue: null,
+                newValue: updates.startDate
+              },
+              userId: user.id,
+              userName: user.name
+            });
           }
-          return task;
-        });
+
+          // Add end date when completing or blocking
+          if (updates.status === TaskStatus.Completed || updates.status === TaskStatus.Blocked) {
+            updates.endDate = new Date().toISOString();
+            newHistory.push({
+              id: generateId(),
+              taskId: id,
+              actionType: TaskHistoryActionType.Updated,
+              timestamp: new Date().toISOString(),
+              changes: {
+                field: 'End Date',
+                oldValue: taskToUpdate.endDate,
+                newValue: updates.endDate
+              },
+              userId: user.id,
+              userName: user.name
+            });
+          }
+        }
+
+        // Handle title change
+        if ('title' in updates && updates.title !== taskToUpdate.title) {
+          newHistory.push({
+            id: generateId(),
+            taskId: id,
+            actionType: TaskHistoryActionType.Updated,
+            timestamp: new Date().toISOString(),
+            changes: {
+              field: 'Title',
+              oldValue: taskToUpdate.title,
+              newValue: updates.title
+            },
+            userId: user.id,
+            userName: user.name
+          });
+        }
+
+        // Handle description change
+        if ('description' in updates && updates.description !== taskToUpdate.description) {
+          newHistory.push({
+            id: generateId(),
+            taskId: id,
+            actionType: TaskHistoryActionType.Updated,
+            timestamp: new Date().toISOString(),
+            changes: {
+              field: 'Description',
+              oldValue: taskToUpdate.description,
+              newValue: updates.description
+            },
+            userId: user.id,
+            userName: user.name
+          });
+        }
+
+        // Handle priority change
+        if ('priority' in updates && updates.priority !== taskToUpdate.priority) {
+          newHistory.push({
+            id: generateId(),
+            taskId: id,
+            actionType: TaskHistoryActionType.PriorityChanged,
+            timestamp: new Date().toISOString(),
+            changes: {
+              field: 'Priority',
+              oldValue: taskToUpdate.priority,
+              newValue: updates.priority
+            },
+            userId: user.id,
+            userName: user.name
+          });
+        }
+
+        // Handle due date change
+        if ('dueDate' in updates && updates.dueDate !== taskToUpdate.dueDate) {
+          newHistory.push({
+            id: generateId(),
+            taskId: id,
+            actionType: TaskHistoryActionType.DueDateChanged,
+            timestamp: new Date().toISOString(),
+            changes: {
+              field: 'Due Date',
+              oldValue: taskToUpdate.dueDate,
+              newValue: updates.dueDate
+            },
+            userId: user.id,
+            userName: user.name
+          });
+        }
+
+        // Create updated task with new history
+        const updatedTask = {
+          ...taskToUpdate,
+          ...updates,
+          history: newHistory
+        };
+
+        const updatedTasks = state.tasks.map((task) =>
+          task.id === id ? updatedTask : task
+        );
 
         console.log('💾 TaskStore: Saving updated tasks to storage...');
         localStorage.setItem('tasks', JSON.stringify(updatedTasks));

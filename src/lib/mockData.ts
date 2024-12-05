@@ -58,7 +58,8 @@ export const getMockTasks = (): Task[] => {
         { id: 'st1', title: 'Color Palette Definition', completed: true },
         { id: 'st2', title: 'Typography Guidelines', completed: true },
         { id: 'st3', title: 'Component Library', completed: false }
-      ]
+      ],
+      history: []
     },
     {
       id: 't2',
@@ -72,7 +73,8 @@ export const getMockTasks = (): Task[] => {
       subtasks: [
         { id: 'st4', title: 'Hero Section', completed: false },
         { id: 'st5', title: 'Feature Showcase', completed: false }
-      ]
+      ],
+      history: []
     },
     {
       id: 't3',
@@ -83,7 +85,8 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.Medium,
       dueDate: addDays(today, 15).toISOString(),
       completed: false,
-      subtasks: []
+      subtasks: [],
+      history: []
     },
 
     // Mobile App Tasks
@@ -100,7 +103,8 @@ export const getMockTasks = (): Task[] => {
       subtasks: [
         { id: 'st6', title: 'Login Screen', completed: true },
         { id: 'st7', title: 'Password Reset', completed: false }
-      ]
+      ],
+      history: []
     },
     {
       id: 't5',
@@ -113,7 +117,8 @@ export const getMockTasks = (): Task[] => {
       completed: false,
       startDate: threeDaysAgo.toISOString(),
       endDate: yesterday.toISOString(),
-      subtasks: []
+      subtasks: [],
+      history: []
     },
 
     // Marketing Campaign Tasks
@@ -130,7 +135,8 @@ export const getMockTasks = (): Task[] => {
       subtasks: [
         { id: 'st8', title: 'Content Calendar', completed: true },
         { id: 'st9', title: 'Platform Selection', completed: true }
-      ]
+      ],
+      history: []
     },
     {
       id: 't7',
@@ -143,7 +149,8 @@ export const getMockTasks = (): Task[] => {
       completed: false,
       startDate: fiveDaysAgo.toISOString(),
       endDate: twoDaysAgo.toISOString(),
-      subtasks: []
+      subtasks: [],
+      history: []
     },
 
     // Product Launch Tasks
@@ -161,7 +168,8 @@ export const getMockTasks = (): Task[] => {
       subtasks: [
         { id: 'st10', title: 'Competitor Analysis', completed: true },
         { id: 'st11', title: 'Customer Surveys', completed: true }
-      ]
+      ],
+      history: []
     },
     {
       id: 't9',
@@ -177,7 +185,8 @@ export const getMockTasks = (): Task[] => {
         { id: 'st12', title: 'Venue Selection', completed: true },
         { id: 'st13', title: 'Guest List', completed: false },
         { id: 'st14', title: 'Event Schedule', completed: false }
-      ]
+      ],
+      history: []
     },
 
     // Internal Tools Tasks
@@ -194,7 +203,8 @@ export const getMockTasks = (): Task[] => {
       subtasks: [
         { id: 'st15', title: 'Database Design', completed: true },
         { id: 'st16', title: 'API Development', completed: false }
-      ]
+      ],
+      history: []
     },
     {
       id: 't11',
@@ -205,7 +215,8 @@ export const getMockTasks = (): Task[] => {
       priority: TaskPriority.Low,
       dueDate: addDays(today, 25).toISOString(),
       completed: false,
-      subtasks: []
+      subtasks: [],
+      history: []
     },
     {
       id: 't12',
@@ -220,7 +231,8 @@ export const getMockTasks = (): Task[] => {
         { id: 'st17', title: 'User Guide', completed: false },
         { id: 'st18', title: 'API Documentation', completed: false },
         { id: 'st19', title: 'System Architecture', completed: false }
-      ]
+      ],
+      history: []
     }
   ];
 };

@@ -21,6 +21,32 @@ export enum RecurrenceType {
   Yearly = 'Yearly'
 }
 
+export enum TaskHistoryActionType {
+  Created = 'Created',
+  Updated = 'Updated',
+  StatusChanged = 'StatusChanged',
+  SubtaskAdded = 'SubtaskAdded',
+  SubtaskCompleted = 'SubtaskCompleted',
+  SubtaskRemoved = 'SubtaskRemoved',
+  PriorityChanged = 'PriorityChanged',
+  DueDateChanged = 'DueDateChanged',
+  ProjectChanged = 'ProjectChanged'
+}
+
+export interface TaskHistoryEntry {
+  id: string;
+  taskId: string;
+  actionType: TaskHistoryActionType;
+  timestamp: string;
+  changes?: {
+    field: string;
+    oldValue?: any;
+    newValue?: any;
+  };
+  userId: string;
+  userName: string;
+}
+
 export interface RecurrencePattern {
   type: RecurrenceType;
   interval: number;
@@ -49,6 +75,7 @@ export interface Task {
   recurrence?: RecurrencePattern;
   startDate?: string;
   endDate?: string;
+  history: TaskHistoryEntry[];
 }
 
 export interface Project {

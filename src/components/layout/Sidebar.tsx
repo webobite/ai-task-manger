@@ -4,6 +4,8 @@ import { LayoutDashboard, ListTodo, BarChart2, Settings, Plus } from 'lucide-rea
 import { ProjectTree } from '../ProjectTree';
 import { TaskForm } from '../TaskForm';
 import { cn } from '../../lib/utils';
+import { useTaskStore } from '../../store/taskStore';
+import { Task } from '../../types';
 
 interface SidebarProps {
   isCollapsed: boolean;
@@ -12,14 +14,22 @@ interface SidebarProps {
 export function Sidebar({ isCollapsed }: SidebarProps) {
   const location = useLocation();
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
+  const addTask = useTaskStore((state) => state.addTask);
+
+  const handleTaskSubmit = (task: Task | Omit<Task, 'id'>) => {
+    console.log('🎯 Sidebar: Handling task submission', task);
+    addTask(task as Omit<Task, 'id'>);
+    setShowNewTaskModal(false);
+  };
 
   const isActive = (path: string) => {
-    return location.pathname.startsWith(path);
+    return location.pathname === path;
   };
 
   const navItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-    { icon: BarChart2, label: 'Analytics', path: '/dashboard/analytics' },
+    { icon: BarChart2, label: 'Analytics', path: '/analytics' },
+    { icon: Settings, label: 'Settings', path: '/settings' },
   ];
 
   return (
@@ -68,20 +78,6 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
               {!isCollapsed && item.label}
             </Link>
           ))}
-          <Link
-            to="/dashboard/settings"
-            className={cn(
-              "flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg",
-              isCollapsed && "px-2 justify-center",
-              isActive('/dashboard/settings')
-                ? "bg-indigo-50 text-indigo-600"
-                : "text-gray-600 hover:bg-gray-50"
-            )}
-            title={isCollapsed ? "Settings" : undefined}
-          >
-            <Settings className="w-5 h-5" />
-            {!isCollapsed && "Settings"}
-          </Link>
         </nav>
 
         {/* Projects Section */}
@@ -95,13 +91,13 @@ export function Sidebar({ isCollapsed }: SidebarProps) {
 
       {/* New Task Modal */}
       {showNewTaskModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Create New Task</h2>
               <TaskForm
                 onClose={() => setShowNewTaskModal(false)}
-                onSubmit={() => setShowNewTaskModal(false)}
+                onSubmit={handleTaskSubmit}
               />
             </div>
           </div>

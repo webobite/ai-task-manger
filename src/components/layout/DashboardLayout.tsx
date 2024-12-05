@@ -48,7 +48,7 @@ export function DashboardLayout() {
                 >
                   <Menu className="h-6 w-6" />
                 </button>
-                <h1 className="ml-4 text-xl font-semibold text-gray-900">Dashboard</h1>
+                <h1 className="ml-2 text-xl font-semibold text-gray-900">Task Manager</h1>
               </div>
               
               {/* Profile Menu */}
