@@ -45,55 +45,92 @@ export const useProjectStore = create<ProjectStore>((set) => ({
   },
 
   loadProjects: () => {
-    const storedProjects = localStorage.getItem('projects');
-    const projects = storedProjects ? JSON.parse(storedProjects) : getMockProjects();
-    set({ projects });
+    const storedUser = localStorage.getItem('user');
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    
+    if (user?.email === 'demo@example.com') {
+      // Load mock data for demo account
+      const storedProjects = localStorage.getItem('projects');
+      const projects = storedProjects ? JSON.parse(storedProjects) : getMockProjects();
+      set({ projects });
+    } else {
+      // For other users, load from localStorage without mock data fallback
+      const storedProjects = localStorage.getItem('projects');
+      const projects = storedProjects ? JSON.parse(storedProjects) : [];
+      set({ projects });
+    }
   },
 
   loadTasks: () => {
-    const storedTasks = localStorage.getItem('tasks');
-    const tasks = storedTasks ? JSON.parse(storedTasks) : getMockTasks();
-    set({ tasks });
+    const storedUser = localStorage.getItem('user');
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    
+    if (user?.email === 'demo@example.com') {
+      // Load mock data for demo account
+      const storedTasks = localStorage.getItem('tasks');
+      const tasks = storedTasks ? JSON.parse(storedTasks) : getMockTasks();
+      set({ tasks });
+    } else {
+      // For other users, load from localStorage without mock data fallback
+      const storedTasks = localStorage.getItem('tasks');
+      const tasks = storedTasks ? JSON.parse(storedTasks) : [];
+      set({ tasks });
+    }
   },
 
-  addProject: (project) =>
-    set((state) => ({
-      projects: [...state.projects, project],
-    })),
+  addProject: (project) => {
+    set((state) => {
+      const newProjects = [...state.projects, project];
+      localStorage.setItem('projects', JSON.stringify(newProjects));
+      return { projects: newProjects };
+    });
+  },
 
   updateProject: (project) =>
-    set((state) => ({
-      projects: state.projects.map((p) =>
+    set((state) => {
+      const newProjects = state.projects.map((p) =>
         p.id === project.id ? project : p
-      ),
-    })),
+      );
+      localStorage.setItem('projects', JSON.stringify(newProjects));
+      return { projects: newProjects };
+    }),
 
   deleteProject: (projectId) =>
-    set((state) => ({
-      projects: state.projects.filter((p) => p.id !== projectId),
-    })),
+    set((state) => {
+      const newProjects = state.projects.filter((p) => p.id !== projectId);
+      localStorage.setItem('projects', JSON.stringify(newProjects));
+      return { projects: newProjects };
+    }),
 
   addTask: (task) =>
-    set((state) => ({
-      tasks: [...state.tasks, task],
-    })),
+    set((state) => {
+      const newTasks = [...state.tasks, task];
+      localStorage.setItem('tasks', JSON.stringify(newTasks));
+      return { tasks: newTasks };
+    }),
 
   updateTask: (task) =>
-    set((state) => ({
-      tasks: state.tasks.map((t) => (t.id === task.id ? task : t)),
-    })),
+    set((state) => {
+      const newTasks = state.tasks.map((t) => (t.id === task.id ? task : t));
+      localStorage.setItem('tasks', JSON.stringify(newTasks));
+      return { tasks: newTasks };
+    }),
 
   deleteTask: (taskId) =>
-    set((state) => ({
-      tasks: state.tasks.filter((t) => t.id !== taskId),
-    })),
+    set((state) => {
+      const newTasks = state.tasks.filter((t) => t.id !== taskId);
+      localStorage.setItem('tasks', JSON.stringify(newTasks));
+      return { tasks: newTasks };
+    }),
 
   updateTaskStatus: (taskId, status) =>
-    set((state) => ({
-      tasks: state.tasks.map((t) =>
+    set((state) => {
+      const newTasks = state.tasks.map((t) =>
         t.id === taskId ? { ...t, status } : t
-      ),
-    })),
+      );
+      localStorage.setItem('tasks', JSON.stringify(newTasks));
+      return { tasks: newTasks };
+    }),
 
   logout: () => {
     localStorage.removeItem('user');
