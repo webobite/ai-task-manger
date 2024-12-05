@@ -1,77 +1,49 @@
 import React from 'react';
-import { Outlet } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { LoginPage } from './pages/auth/LoginPage';
+import { RegisterPage } from './pages/auth/RegisterPage';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { DashboardLayout } from './components/layout/DashboardLayout';
-import { TaskForm } from './components/TaskForm';
-import { Modal } from './components/ui/Modal';
+import { TaskList } from './components/TaskList';
 import { useTaskStore } from './store/taskStore';
-import { useProjectStore } from './store/projectStore';
-import { Task } from './types/task';
-import { Plus } from 'lucide-react';
+import { Task, TaskStatus } from './types';
 
-function App() {
-  const [isModalOpen, setIsModalOpen] = React.useState(false);
-  const [editingTask, setEditingTask] = React.useState<Task | undefined>();
+export function App() {
   const addTask = useTaskStore((state) => state.addTask);
   const updateTask = useTaskStore((state) => state.updateTask);
-  const initializeWithMockData = useProjectStore((state) => state.initializeWithMockData);
-
-  React.useEffect(() => {
-    // Initialize with mock data if no tasks exist
-    if (useTaskStore.getState().tasks.length === 0) {
-      initializeWithMockData();
-    }
-  }, [initializeWithMockData]);
-
-  const handleTaskSubmit = (task: Task) => {
-    if (editingTask) {
-      updateTask(task.id, task);
-    } else {
-      addTask(task);
-    }
-    setIsModalOpen(false);
-    setEditingTask(undefined);
-  };
+  const deleteTask = useTaskStore((state) => state.deleteTask);
 
   const handleEditTask = (task: Task) => {
-    setEditingTask(task);
-    setIsModalOpen(true);
+    updateTask(task.id, task);
+  };
+
+  const handleStatusChange = (taskId: string, status: TaskStatus) => {
+    updateTask(taskId, { status });
+  };
+
+  const taskProps = {
+    onAddTask: addTask,
+    onEditTask: handleEditTask,
+    onDeleteTask: deleteTask,
+    onStatusChange: handleStatusChange,
   };
 
   return (
-    <DashboardLayout onEditTask={handleEditTask}>
-      <div className="space-y-6">
-        <div className="flex justify-between items-center">
-          <h2 className="text-2xl font-bold text-gray-900">Tasks</h2>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="inline-flex items-center gap-1 px-4 py-2 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700"
-          >
-            <Plus className="w-4 h-4" />
-            New Task
-          </button>
-        </div>
-
-        <Outlet context={{ onEditTask: handleEditTask }} />
-      </div>
-
-      <Modal
-        isOpen={isModalOpen}
-        onClose={() => {
-          setIsModalOpen(false);
-          setEditingTask(undefined);
-        }}
-        title={editingTask ? 'Edit Task' : 'Create New Task'}
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout />
+          </ProtectedRoute>
+        }
       >
-        <TaskForm
-          task={editingTask}
-          onSubmit={handleTaskSubmit}
-          onCancel={() => {
-            setIsModalOpen(false);
-            setEditingTask(undefined);
-          }}
-        />
-      </Modal>
-    </DashboardLayout>
+        <Route index element={<Navigate to="/dashboard" replace />} />
+        <Route path="dashboard" element={<TaskList {...taskProps} />} />
+      </Route>
+    </Routes>
   );
 }
 

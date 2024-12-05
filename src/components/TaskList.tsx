@@ -1,15 +1,17 @@
 import React from 'react';
+import { Task, TaskStatus, TaskPriority, Project } from '../types';
 import { useTaskStore } from '../store/taskStore';
 import { useProjectStore } from '../store/projectStore';
-import { Task } from '../types/task';
-import { useOutletContext } from 'react-router-dom';
+import { KanbanBoard } from './KanbanBoard';
 import { Pencil, Trash2, Filter, X, LayoutGrid, List, Search, ChevronDown, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { format, isToday, isTomorrow, isThisWeek, isPast, startOfToday, isWithinInterval, parseISO } from 'date-fns';
-import { KanbanBoard } from './KanbanBoard';
 import { cn } from '../lib/utils';
 
-interface OutletContextType {
+interface TaskListProps {
   onEditTask: (task: Task) => void;
+  onDeleteTask: (taskId: string) => void;
+  onAddTask: (task: Omit<Task, 'id'>) => void;
+  onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
 }
 
 interface TaskFilters {
@@ -28,18 +30,18 @@ interface FilterOption {
 
 const PRIORITY_OPTIONS: FilterOption[] = [
   { value: 'all', label: 'All Priorities' },
-  { value: 'high', label: 'High Priority' },
-  { value: 'medium', label: 'Medium Priority' },
-  { value: 'low', label: 'Low Priority' },
+  { value: TaskPriority.High, label: 'High Priority' },
+  { value: TaskPriority.Medium, label: 'Medium Priority' },
+  { value: TaskPriority.Low, label: 'Low Priority' },
 ];
 
 const STATUS_OPTIONS: FilterOption[] = [
   { value: 'all', label: 'All Statuses' },
-  { value: 'todo', label: 'To Do' },
-  { value: 'in-progress', label: 'In Progress' },
-  { value: 'hold', label: 'On Hold' },
-  { value: 'blocked', label: 'Blocked' },
-  { value: 'done', label: 'Done' },
+  { value: TaskStatus.Todo, label: 'To Do' },
+  { value: TaskStatus.InProgress, label: 'In Progress' },
+  { value: TaskStatus.OnHold, label: 'On Hold' },
+  { value: TaskStatus.Blocked, label: 'Blocked' },
+  { value: TaskStatus.Completed, label: 'Completed' },
 ];
 
 const DUE_DATE_OPTIONS: FilterOption[] = [
@@ -51,23 +53,9 @@ const DUE_DATE_OPTIONS: FilterOption[] = [
   { value: 'custom', label: 'Custom Range' },
 ];
 
-const STATUS_COLORS = {
-  'todo': 'bg-gray-100 text-gray-800',
-  'in-progress': 'bg-blue-100 text-blue-800',
-  'hold': 'bg-yellow-100 text-yellow-800',
-  'blocked': 'bg-red-100 text-red-800',
-  'done': 'bg-green-100 text-green-800',
-};
-
-const PRIORITY_COLORS = {
-  low: 'bg-blue-100 text-blue-800',
-  medium: 'bg-yellow-100 text-yellow-800',
-  high: 'bg-red-100 text-red-800',
-};
-
 interface TaskRowProps {
   task: Task;
-  project: { id: string; name: string } | undefined;
+  project: Project | undefined;
   onEdit: (task: Task) => void;
   onDelete: (taskId: string) => void;
   level?: number;
@@ -76,9 +64,8 @@ interface TaskRowProps {
 function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const tasks = useTaskStore((state) => state.tasks);
-  const subtasks = tasks.filter(t => t.parentTaskId === task.id);
+  const subtasks = task.subtasks || [];
   const hasSubtasks = subtasks.length > 0;
-  const isOverdue = !task.completed && new Date(task.dueDate) < new Date();
 
   return (
     <>
@@ -111,7 +98,7 @@ function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
               )}
               {hasSubtasks && (
                 <div className="text-xs text-gray-500 mt-1">
-                  {subtasks.filter(t => t.completed).length} of {subtasks.length} subtasks
+                  {subtasks.filter(st => st.completed).length} of {subtasks.length} subtasks
                 </div>
               )}
             </div>
@@ -123,29 +110,29 @@ function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={cn(
             "px-2 py-1 text-xs font-medium rounded-full",
-            task.status === 'todo' ? 'bg-gray-100 text-gray-800' :
-            task.status === 'in-progress' ? 'bg-blue-100 text-blue-800' :
-            task.status === 'hold' ? 'bg-yellow-100 text-yellow-800' :
-            task.status === 'blocked' ? 'bg-red-100 text-red-800' :
+            task.status === TaskStatus.Todo ? 'bg-gray-100 text-gray-800' :
+            task.status === TaskStatus.InProgress ? 'bg-blue-100 text-blue-800' :
+            task.status === TaskStatus.OnHold ? 'bg-yellow-100 text-yellow-800' :
+            task.status === TaskStatus.Blocked ? 'bg-red-100 text-red-800' :
             'bg-green-100 text-green-800'
           )}>
-            {task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+            {task.status}
           </span>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <span className={cn(
             "px-2 py-1 text-xs font-medium rounded-full",
-            task.priority === 'high' ? 'bg-red-100 text-red-800' :
-            task.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+            task.priority === TaskPriority.High ? 'bg-red-100 text-red-800' :
+            task.priority === TaskPriority.Medium ? 'bg-yellow-100 text-yellow-800' :
             'bg-blue-100 text-blue-800'
           )}>
-            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
+            {task.priority}
           </span>
         </td>
         <td className="px-6 py-4 whitespace-nowrap">
           <div className={cn(
             "text-sm",
-            isOverdue ? "text-red-600 font-medium" : "text-gray-900"
+            !task.completed && new Date(task.dueDate) < new Date() && "text-red-600 font-medium"
           )}>
             {format(new Date(task.dueDate), 'MMM d, yyyy')}
           </div>
@@ -168,14 +155,29 @@ function TaskRow({ task, project, onEdit, onDelete, level = 0 }: TaskRowProps) {
         </td>
       </tr>
       {isExpanded && hasSubtasks && subtasks.map(subtask => (
-        <TaskRow
-          key={subtask.id}
-          task={subtask}
-          project={project}
-          onEdit={onEdit}
-          onDelete={onDelete}
-          level={level + 1}
-        />
+        <tr key={subtask.id} className="bg-gray-50">
+          <td colSpan={6} className="px-6 py-2">
+            <div className="flex items-center gap-2 ml-8">
+              <input
+                type="checkbox"
+                checked={subtask.completed}
+                onChange={() => {
+                  const updatedSubtasks = task.subtasks.map(st =>
+                    st.id === subtask.id ? { ...st, completed: !st.completed } : st
+                  );
+                  onEdit({ ...task, subtasks: updatedSubtasks });
+                }}
+                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+              />
+              <span className={cn(
+                "text-sm",
+                subtask.completed && "line-through text-gray-500"
+              )}>
+                {subtask.title}
+              </span>
+            </div>
+          </td>
+        </tr>
       ))}
     </>
   );
@@ -203,11 +205,8 @@ const TABLE_COLUMNS: TableColumn[] = [
   { field: 'dueDate', label: 'Due Date', sortable: true },
 ];
 
-export function TaskList() {
-  const { onEditTask } = useOutletContext<OutletContextType>();
+export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }: TaskListProps) {
   const tasks = useTaskStore((state) => state.tasks);
-  const deleteTask = useTaskStore((state) => state.deleteTask);
-  const updateTask = useTaskStore((state) => state.updateTask);
   const projects = useProjectStore((state) => state.projects);
   const [filters, setFilters] = React.useState<TaskFilters>({
     projectId: 'all',
@@ -318,8 +317,8 @@ export function TaskList() {
       : <ArrowDown className="w-4 h-4" />;
   };
 
-  // Filter tasks based on active filters and show only root tasks (no parent)
-  const filteredTasks = tasks.filter(task => !task.parentTaskId && filterTasks(task));
+  // Filter tasks based on active filters
+  const filteredTasks = tasks.filter(filterTasks);
 
   // Sort tasks based on the current sort config
   const sortedTasks = [...filteredTasks].sort((a, b) => {
@@ -338,10 +337,8 @@ export function TaskList() {
       case 'status':
         return direction * a.status.localeCompare(b.status);
       
-      case 'priority': {
-        const priorityOrder = { high: 0, medium: 1, low: 2 };
-        return direction * (priorityOrder[a.priority] - priorityOrder[b.priority]);
-      }
+      case 'priority':
+        return direction * a.priority.localeCompare(b.priority);
       
       case 'dueDate':
         return direction * (new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
@@ -350,28 +347,6 @@ export function TaskList() {
         return 0;
     }
   });
-
-  const handleDeleteTask = (taskId: string) => {
-    // Get all subtasks recursively
-    const getAllSubtaskIds = (parentId: string): string[] => {
-      const subtasks = tasks.filter(t => t.parentTaskId === parentId);
-      return [
-        ...subtasks.map(t => t.id),
-        ...subtasks.flatMap(t => getAllSubtaskIds(t.id))
-      ];
-    };
-
-    // Delete the task and all its subtasks
-    const subtaskIds = getAllSubtaskIds(taskId);
-    [...subtaskIds, taskId].forEach(id => deleteTask(id));
-  };
-
-  const handleStatusChange = (taskId: string, newStatus: Task['status']) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (task) {
-      updateTask(taskId, { ...task, status: newStatus });
-    }
-  };
 
   const hasActiveFilters = filters.projectId !== 'all' || 
                           filters.priority !== 'all' || 
@@ -559,8 +534,8 @@ export function TaskList() {
         <KanbanBoard
           tasks={sortedTasks}
           onEdit={onEditTask}
-          onDelete={handleDeleteTask}
-          onStatusChange={handleStatusChange}
+          onDelete={onDeleteTask}
+          onStatusChange={onStatusChange}
         />
       ) : (
         <div className="bg-white rounded-lg shadow-sm overflow-hidden">
@@ -602,7 +577,7 @@ export function TaskList() {
                       task={task}
                       project={project}
                       onEdit={onEditTask}
-                      onDelete={handleDeleteTask}
+                      onDelete={onDeleteTask}
                     />
                   );
                 })}

@@ -1,84 +1,72 @@
 import { create } from 'zustand';
-import { Project } from '../types/task';
+import { Project, Task } from '../types';
 import { generateId } from '../lib/utils';
-import { generateMockData } from '../lib/mockData';
+import { getMockProjects } from '../lib/mockData';
 import { useTaskStore } from './taskStore';
 
 interface ProjectStore {
   projects: Project[];
-  activeProjectId: string;
-  addProject: (name: string) => void;
-  deleteProject: (id: string) => boolean;
-  setActiveProject: (id: string) => void;
-  initializeWithMockData: () => void;
+  selectedProjectId: string | null;
+  addProject: (project: Omit<Project, 'id'>) => void;
+  updateProject: (project: Project) => void;
+  deleteProject: (id: string) => void;
+  selectProject: (id: string | null) => void;
+  moveTask: (taskId: string, targetProjectId: string) => void;
+  loadProjects: () => void;
 }
 
-const DEFAULT_PROJECT: Project = {
-  id: 'default',
-  name: 'Default Project',
-  isDefault: true,
-  createdAt: new Date(),
-};
-
 export const useProjectStore = create<ProjectStore>((set, get) => ({
-  projects: [DEFAULT_PROJECT],
-  activeProjectId: DEFAULT_PROJECT.id,
+  projects: [],
+  selectedProjectId: null,
 
-  addProject: (name: string) => {
-    const newProject: Project = {
+  loadProjects: () => {
+    const storedProjects = localStorage.getItem('projects');
+    if (storedProjects) {
+      set({ projects: JSON.parse(storedProjects) });
+    } else {
+      const mockProjects = getMockProjects();
+      set({ projects: mockProjects });
+    }
+  },
+
+  addProject: (projectData) => {
+    const project: Project = {
+      ...projectData,
       id: generateId(),
-      name,
-      createdAt: new Date(),
     };
     set((state) => ({
-      projects: [...state.projects, newProject],
+      projects: [...state.projects, project],
     }));
+    localStorage.setItem('projects', JSON.stringify(get().projects));
   },
 
-  deleteProject: (id: string) => {
-    const { projects } = get();
-    const project = projects.find((p) => p.id === id);
-    
-    if (!project || project.isDefault) {
-      return false;
-    }
+  updateProject: (project) => {
+    set((state) => ({
+      projects: state.projects.map((p) =>
+        p.id === project.id ? project : p
+      ),
+    }));
+    localStorage.setItem('projects', JSON.stringify(get().projects));
+  },
 
-    // Move all tasks from the deleted project to the default project
-    const updateTask = useTaskStore.getState().updateTask;
-    const tasks = useTaskStore.getState().tasks;
-    
-    tasks.forEach(task => {
-      if (task.projectId === id) {
-        updateTask(task.id, {
-          ...task,
-          projectId: DEFAULT_PROJECT.id
-        });
-      }
-    });
-
+  deleteProject: (id) => {
     set((state) => ({
       projects: state.projects.filter((p) => p.id !== id),
-      activeProjectId: state.activeProjectId === id ? DEFAULT_PROJECT.id : state.activeProjectId,
+      selectedProjectId: state.selectedProjectId === id ? null : state.selectedProjectId,
     }));
-    return true;
+    localStorage.setItem('projects', JSON.stringify(get().projects));
   },
 
-  setActiveProject: (id: string) => {
-    set({ activeProjectId: id });
+  selectProject: (id) => {
+    set({ selectedProjectId: id });
   },
 
-  initializeWithMockData: () => {
-    const { projects, tasks } = generateMockData();
-    const addTask = useTaskStore.getState().addTask;
+  moveTask: (taskId: string, targetProjectId: string) => {
+    const { updateTask } = useTaskStore.getState();
+    const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
     
-    // Add mock projects
-    set((state) => ({
-      projects: [DEFAULT_PROJECT, ...projects],
-    }));
-
-    // Add mock tasks
-    tasks.forEach(task => {
-      addTask(task);
-    });
+    if (task) {
+      updateTask(taskId, { ...task, projectId: targetProjectId });
+    }
   },
 })); 
