@@ -1,0 +1,73 @@
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email TEXT UNIQUE NOT NULL,
+  password TEXT NOT NULL,
+  name TEXT NOT NULL,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Projects table
+CREATE TABLE IF NOT EXISTS projects (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  description TEXT,
+  color TEXT,
+  parentId INTEGER,
+  userId INTEGER NOT NULL,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (parentId) REFERENCES projects (id) ON DELETE CASCADE,
+  FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- Tasks table
+CREATE TABLE IF NOT EXISTS tasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL,
+  description TEXT,
+  projectId INTEGER NOT NULL,
+  status TEXT NOT NULL,
+  priority TEXT NOT NULL,
+  dueDate DATETIME,
+  startDate DATETIME,
+  endDate DATETIME,
+  completed BOOLEAN DEFAULT 0,
+  userId INTEGER NOT NULL,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (projectId) REFERENCES projects (id) ON DELETE CASCADE,
+  FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- Subtasks table
+CREATE TABLE IF NOT EXISTS subtasks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  taskId INTEGER NOT NULL,
+  title TEXT NOT NULL,
+  completed BOOLEAN DEFAULT 0,
+  createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (taskId) REFERENCES tasks (id) ON DELETE CASCADE
+);
+
+-- Task history table
+CREATE TABLE IF NOT EXISTS task_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  taskId INTEGER NOT NULL,
+  actionType TEXT NOT NULL,
+  userId INTEGER NOT NULL,
+  timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+  changes TEXT,
+  FOREIGN KEY (taskId) REFERENCES tasks (id) ON DELETE CASCADE,
+  FOREIGN KEY (userId) REFERENCES users (id) ON DELETE CASCADE
+);
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_projects_userId ON projects(userId);
+CREATE INDEX IF NOT EXISTS idx_tasks_userId ON tasks(userId);
+CREATE INDEX IF NOT EXISTS idx_tasks_projectId ON tasks(projectId);
+CREATE INDEX IF NOT EXISTS idx_subtasks_taskId ON subtasks(taskId);
+CREATE INDEX IF NOT EXISTS idx_task_history_taskId ON task_history(taskId);
+CREATE INDEX IF NOT EXISTS idx_task_history_userId ON task_history(userId); 

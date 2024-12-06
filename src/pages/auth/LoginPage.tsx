@@ -9,7 +9,7 @@ export function LoginPage() {
 
   React.useEffect(() => {
     if (user) {
-      navigate('/');
+      navigate('/dashboard', { replace: true });
     }
   }, [user, navigate]);
 

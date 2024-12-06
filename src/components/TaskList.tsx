@@ -6,13 +6,13 @@ import { KanbanBoard } from './KanbanBoard';
 import { Pencil, Trash2, Filter, X, LayoutGrid, List, Search, ChevronDown, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, SettingsIcon } from 'lucide-react';
 import { format, isToday, isTomorrow, isThisWeek, isPast, startOfToday, isWithinInterval, parseISO } from 'date-fns';
 import { cn } from '../lib/utils';
+import { useParams } from 'react-router-dom';
 
 interface TaskListProps {
   onEditTask: (task: Task) => void;
   onDeleteTask: (taskId: string) => void;
   onAddTask: (task: Omit<Task, 'id'>) => void;
   onStatusChange: (taskId: string, newStatus: TaskStatus) => void;
-  projectId?: string;
 }
 
 interface TaskFilters {
@@ -293,11 +293,12 @@ const TABLE_COLUMNS: TableColumn[] = [
   { field: 'endDate', label: 'End Date', sortable: true },
 ];
 
-export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange, projectId }: TaskListProps) {
+export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange }: TaskListProps) {
+  const { projectId: urlProjectId } = useParams();
   const tasks = useTaskStore((state) => state.tasks);
   const projects = useProjectStore((state) => state.projects);
   const [filters, setFilters] = React.useState<TaskFilters>({
-    projectId: projectId || 'all',
+    projectId: urlProjectId || 'all',
     priority: 'all',
     status: 'all',
     dueDate: 'all',
@@ -316,10 +317,10 @@ export function TaskList({ onEditTask, onDeleteTask, onAddTask, onStatusChange, 
   );
 
   React.useEffect(() => {
-    if (projectId) {
-      setFilters(prev => ({ ...prev, projectId }));
+    if (urlProjectId) {
+      setFilters(prev => ({ ...prev, projectId: urlProjectId }));
     }
-  }, [projectId]);
+  }, [urlProjectId]);
 
   const handleFilterChange = (key: keyof TaskFilters, value: string) => {
     if (key === 'dueDate' && value !== 'custom') {

@@ -81,8 +81,12 @@ export interface Task {
 export interface Project {
   id: string;
   name: string;
-  description: string;
-  color: string;
+  description?: string;
+  color?: string;
+  parentId?: string;
+  children?: Project[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface DragResult {

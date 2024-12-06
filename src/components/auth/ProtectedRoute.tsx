@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 
 interface ProtectedRouteProps {
@@ -7,11 +7,11 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const location = useLocation();
-  const user = useAuthStore((state) => state.user);
+  const user = useAuthStore(state => state.user);
+  const token = localStorage.getItem('token');
 
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!token || !user) {
+    return <Navigate to="/login" replace />;
   }
 
   return <>{children}</>;

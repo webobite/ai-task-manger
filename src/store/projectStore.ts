@@ -1,72 +1,89 @@
 import { create } from 'zustand';
-import { Project, Task } from '../types';
-import { generateId } from '../lib/utils';
-import { getMockProjects } from '../lib/mockData';
-import { useTaskStore } from './taskStore';
+import { Project } from '../types';
+import { projectApi } from '../lib/api';
 
-interface ProjectStore {
+interface ProjectState {
   projects: Project[];
-  selectedProjectId: string | null;
-  addProject: (project: Omit<Project, 'id'>) => void;
-  updateProject: (project: Project) => void;
-  deleteProject: (id: string) => void;
-  selectProject: (id: string | null) => void;
-  moveTask: (taskId: string, targetProjectId: string) => void;
-  loadProjects: () => void;
+  loading: boolean;
+  error: string | null;
+  loadProjects: () => Promise<void>;
+  createProject: (project: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  updateProject: (id: string, updates: Partial<Omit<Project, 'id' | 'createdAt' | 'updatedAt'>>) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
 }
 
-export const useProjectStore = create<ProjectStore>((set, get) => ({
+export const useProjectStore = create<ProjectState>((set) => ({
   projects: [],
-  selectedProjectId: null,
+  loading: false,
+  error: null,
 
-  loadProjects: () => {
-    const storedProjects = localStorage.getItem('projects');
-    if (storedProjects) {
-      set({ projects: JSON.parse(storedProjects) });
-    } else {
-      const mockProjects = getMockProjects();
-      set({ projects: mockProjects });
+  loadProjects: async () => {
+    try {
+      set({ loading: true, error: null });
+      const projects = await projectApi.getProjects();
+      set({ projects, loading: false });
+    } catch (error) {
+      console.error('Error loading projects:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to load projects',
+        loading: false 
+      });
     }
   },
 
-  addProject: (projectData) => {
-    const project: Project = {
-      ...projectData,
-      id: generateId(),
-    };
-    set((state) => ({
-      projects: [...state.projects, project],
-    }));
-    localStorage.setItem('projects', JSON.stringify(get().projects));
+  createProject: async (project) => {
+    try {
+      set({ loading: true, error: null });
+      const newProject = await projectApi.createProject(project);
+      set(state => ({ 
+        projects: [...state.projects, newProject],
+        loading: false 
+      }));
+    } catch (error) {
+      console.error('Error creating project:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to create project',
+        loading: false 
+      });
+      throw error;
+    }
   },
 
-  updateProject: (project) => {
-    set((state) => ({
-      projects: state.projects.map((p) =>
-        p.id === project.id ? project : p
-      ),
-    }));
-    localStorage.setItem('projects', JSON.stringify(get().projects));
+  updateProject: async (id, updates) => {
+    try {
+      set({ loading: true, error: null });
+      const updatedProject = await projectApi.updateProject(id, updates);
+      set(state => ({
+        projects: state.projects.map(p => 
+          p.id === id ? { ...p, ...updatedProject } : p
+        ),
+        loading: false
+      }));
+    } catch (error) {
+      console.error('Error updating project:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to update project',
+        loading: false 
+      });
+      throw error;
+    }
   },
 
-  deleteProject: (id) => {
-    set((state) => ({
-      projects: state.projects.filter((p) => p.id !== id),
-      selectedProjectId: state.selectedProjectId === id ? null : state.selectedProjectId,
-    }));
-    localStorage.setItem('projects', JSON.stringify(get().projects));
-  },
-
-  selectProject: (id) => {
-    set({ selectedProjectId: id });
-  },
-
-  moveTask: (taskId: string, targetProjectId: string) => {
-    const { updateTask } = useTaskStore.getState();
-    const task = useTaskStore.getState().tasks.find(t => t.id === taskId);
-    
-    if (task) {
-      updateTask(taskId, { ...task, projectId: targetProjectId });
+  deleteProject: async (id) => {
+    try {
+      set({ loading: true, error: null });
+      await projectApi.deleteProject(id);
+      set(state => ({
+        projects: state.projects.filter(p => p.id !== id),
+        loading: false
+      }));
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      set({ 
+        error: error instanceof Error ? error.message : 'Failed to delete project',
+        loading: false 
+      });
+      throw error;
     }
   },
 })); 
